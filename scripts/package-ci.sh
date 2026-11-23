@@ -29,9 +29,13 @@ AK="$PROJ/.build/ak3-$VARIANT"
 rm -rf "$AK"; cp -r "$PROJ/anykernel" "$AK"
 rm -f "$AK"/Image* "$AK"/zImage*
 cp "$STAGED/Image" "$AK/Image"
-if [[ -n "${MAGISKBOOT_ARM64:-}" ]]; then
-  cp "$MAGISKBOOT_ARM64" "$AK/tools/magiskboot"; chmod 755 "$AK/tools/magiskboot"
-fi
+# The bundled AnyKernel3 tools are 32-bit ARM; Snapdragon 8s Gen 4 has no 32-bit
+# support, so the installer dies at "Busybox setup failed". Use arm64 builds.
+: "${AK_TOOLS_ARM64:?set AK_TOOLS_ARM64 to a dir with arm64 magiskboot, busybox, magiskpolicy}"
+for t in magiskboot busybox magiskpolicy; do
+  cp "$AK_TOOLS_ARM64/$t" "$AK/tools/$t"; chmod 755 "$AK/tools/$t"
+  file "$AK/tools/$t" | grep -q 'ARM aarch64' || die "tools/$t is not arm64"
+done
 
 NAMELINES=""; i=1
 for n in $DEVICE_NAMES; do NAMELINES+="device.name${i}=${n}"$'\n'; i=$((i+1)); done
