@@ -1,0 +1,9 @@
+.build/
+out/
+dist/
+*.img
+*.bin
+*.orig
+*.rej
+__pycache__/
+*.pyc
