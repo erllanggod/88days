@@ -38,7 +38,6 @@ import sys
 SHT_SYMTAB = 2
 STT_FUNC = 2
 
-
 def valid_ident(b: bytes) -> bool:
     return (
         bool(b)
@@ -48,7 +47,6 @@ def valid_ident(b: bytes) -> bool:
             for c in b
         )
     )
-
 
 def extract_kcfi_from_elf(path: str):
     """Return ({fn: kcfi_u32}, is_elf) from an ELF vmlinux or .ko."""
@@ -88,9 +86,6 @@ def extract_kcfi_from_elf(path: str):
             bind = st_info >> 4
             funcs.append((nm.decode("ascii", "replace"), st_shndx, st_value, bind))
 
-    # For vmlinux ELF, read the 32-bit word 4 bytes before each STT_FUNC entry.
-    # Global/weak symbols (bind != 0) are the exported definitions and must take
-    # precedence over file-local static functions (bind == 0) of the same name.
     funcs.sort(key=lambda item: (item[3] == 0))
     for fn, shndx, addr, _ in funcs:
         if fn in out:
@@ -103,7 +98,6 @@ def extract_kcfi_from_elf(path: str):
             if 0 <= file_off <= len(data) - 4:
                 out[fn] = struct.unpack_from("<I", data, file_off)[0]
     return out, True
-
 
 def extract_kcfi_from_raw_image(path: str):
     """Extract {fn: kcfi_u32} from an uncompressed ARM64 Image via __ksymtab PREL32."""
@@ -177,7 +171,6 @@ def extract_kcfi_from_raw_image(path: str):
             out[fn] = struct.unpack_from("<I", data, target_off - 4)[0]
     return out
 
-
 def load_symvers_names(path: str):
     names = set()
     with open(path, "r", encoding="utf-8", errors="replace") as f:
@@ -186,7 +179,6 @@ def load_symvers_names(path: str):
             if len(p) >= 2:
                 names.add(p[1])
     return names
-
 
 def main():
     ap = argparse.ArgumentParser(
@@ -286,7 +278,6 @@ def main():
         f"vmlinux_kcfi_matched={checked} missing=0 mismatched=0"
     )
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

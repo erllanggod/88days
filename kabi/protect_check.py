@@ -23,7 +23,6 @@ import sys
 
 SHT_SYMTAB = 2
 
-
 def read_protected_symbols_from_vmlinux(vmlinux_path):
     """Return list of symbol strings inside gki_protected_exports_symbols / protected_symbol_exports in vmlinux."""
     with open(vmlinux_path, "rb") as f:
@@ -82,7 +81,6 @@ def read_protected_symbols_from_vmlinux(vmlinux_path):
             syms.append(s)
     return syms
 
-
 def load_exports_tsv(path):
     exp = {}
     if not path or not os.path.isfile(path):
@@ -96,7 +94,6 @@ def load_exports_tsv(path):
             if len(parts) >= 3:
                 exp[parts[1]] = parts[2]
     return exp
-
 
 def main():
     ap = argparse.ArgumentParser(
@@ -183,7 +180,6 @@ def main():
         f"device_exports={len(device_exports)}, collisions=0"
     )
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

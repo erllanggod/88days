@@ -7,10 +7,8 @@ permissions:
   contents: read
 
 env:
-  # Android clang r510928 = the compiler the stock kernel was built with.
   CLANG_URL: https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android15-release/clang-r510928.tar.gz
   MAGISK_URL: https://github.com/topjohnwu/Magisk/releases/download/v27.0/Magisk-v27.0.apk
-  # Pinned kernel source (erllanggod/qwerty). Must match KERNEL_COMMON_REF in sources.lock.
   KERNEL_REF: 13dbecdba4678e4264db264378a3e326e9da2e75
 
 jobs:
@@ -80,13 +78,11 @@ jobs:
           echo "AK_TOOLS_ARM64=$RUNNER_TEMP" >> "$GITHUB_ENV"
 
       - name: Build + KMI gates
-        env:
-          PATCHES_PRESEEDED: "1"
         run: |
           ./build.sh vanilla
 
       - name: Package AnyKernel3 zip
-        run: scripts/package-ci.sh vanilla
+        run: core/package.sh vanilla
 
       - name: Upload
         uses: actions/upload-artifact@v4

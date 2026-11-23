@@ -13,7 +13,6 @@ import argparse
 import os
 import sys
 
-
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("symvers")
@@ -55,7 +54,6 @@ def main():
         f"PASS [dup_export_check]: vmlinux exports {len(ours)}, stock module exports {len(mods)}, 0 duplicates"
     )
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

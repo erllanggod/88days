@@ -22,7 +22,6 @@ import argparse
 import os
 import sys
 
-
 def load_symvers(path):
     syms = {}
     with open(path, "r", encoding="utf-8", errors="replace") as f:
@@ -44,7 +43,6 @@ def load_symvers(path):
                 syms[sym] = (crc, mod)
     return syms
 
-
 def load_required(path):
     req = {}
     with open(path, "r", encoding="utf-8") as f:
@@ -59,7 +57,6 @@ def load_required(path):
             ex_ko = parts[3] if len(parts) > 3 else "?"
             req[sym] = (crc, cnt, ex_ko)
     return req
-
 
 def load_exports(path):
     exp = {}
@@ -77,7 +74,6 @@ def load_exports(path):
                 exp[parts[1]] = (int(parts[0], 16), parts[2])
     return exp
 
-
 def load_summary(path):
     info = {"vermagics": []}
     if not os.path.isfile(path):
@@ -93,7 +89,6 @@ def load_summary(path):
             else:
                 info[k] = v
     return info
-
 
 def main():
     ap = argparse.ArgumentParser(description="Gate Layer 1: KMI ABI verifier")
@@ -236,7 +231,6 @@ def main():
         f"missing=0 mismatched=0"
     )
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

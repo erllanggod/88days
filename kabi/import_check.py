@@ -19,7 +19,6 @@ import argparse
 import os
 import sys
 
-
 def load_vmlinux_symvers(path):
     syms = {}
     with open(path, "r", encoding="utf-8", errors="replace") as f:
@@ -33,7 +32,6 @@ def load_vmlinux_symvers(path):
             if len(parts) >= 4 and parts[2] == "vmlinux":
                 syms[parts[1]] = int(parts[0], 16)
     return syms
-
 
 def load_exports(path):
     exp = {}
@@ -51,7 +49,6 @@ def load_exports(path):
                 exp[parts[1]] = (int(parts[0], 16), parts[2])
     return exp
 
-
 def load_raw_symbollist(path):
     if not path or not os.path.isfile(path):
         return None
@@ -62,7 +59,6 @@ def load_raw_symbollist(path):
             if s and not s.startswith("#") and not s.startswith("["):
                 allowed.add(s)
     return allowed
-
 
 def main():
     ap = argparse.ArgumentParser(
@@ -173,7 +169,6 @@ def main():
         f"unwhitelisted=0"
     )
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())

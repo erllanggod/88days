@@ -1,11 +1,3 @@
-# patches/series — applied in order by apply-mods.sh to EVERY non-stock variant,
-# onto the pristine pinned tree (sources.lock KERNEL_COMMON_REF), before ksunext.
-# Each patch was generated from one commit of the porting tree and is applied with
-# strict `git apply --index` — no fuzz. ORDER MATTERS.
-#
-# columns:  <patch>  <config switch it needs, or ->  <symbol that must be in System.map>
-# build.sh checks the last two after every build: a passing KMI gate proves the
-# ABI, not the feature set — a kernel with these silently dropped gates clean too.
 05-gki-protect-no-module-exports.patch  -                            -
 10-bore-7.0.1-gki-kabi.patch            CONFIG_SCHED_BORE            sched_init_bore
 20-ntsync-mainline.patch                CONFIG_NTSYNC                ntsync_misc

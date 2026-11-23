@@ -15,7 +15,6 @@ import argparse
 import os
 import sys
 
-
 def load_symvers(path):
     syms = {}
     with open(path, "r", encoding="utf-8", errors="replace") as f:
@@ -29,7 +28,6 @@ def load_symvers(path):
             if len(parts) >= 2:
                 syms[parts[1]] = int(parts[0], 16)
     return syms
-
 
 def main():
     ap = argparse.ArgumentParser(
@@ -115,7 +113,6 @@ def main():
         f"req_checked={len(req_syms)} req_missing=0 req_mismatched=0"
     )
     return 0
-
 
 if __name__ == "__main__":
     sys.exit(main())
