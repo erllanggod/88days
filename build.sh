@@ -11,17 +11,18 @@ ok()   { echo "$(c '1;32')✓$(c 0) $*"; }
 warn() { echo "$(c '1;33')⚠$(c 0) $*" >&2; }
 die()  { echo "$(c '1;31')✗ ERROR: $*$(c 0)" >&2; exit 1; }
 
-VARIANT=""; GATE_ONLY=0; JOBS="${JOBS:-$(nproc)}"
+VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; JOBS="${JOBS:-$(nproc)}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     vanilla)     VARIANT="$1" ;;
     --gate-only) GATE_ONLY=1 ;;
+    --droidspaces) DROIDSPACES=1 ;;
     --jobs)      shift; JOBS="${1:-}" ;;
     *)           die "unknown argument: $1" ;;
   esac
   shift
 done
-[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--gate-only] [--jobs N]"
+[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--gate-only] [--jobs N]"
 
 [[ -f "$PROJ/branding/device.conf" ]] || die "missing $PROJ/branding/device.conf"
 source "$PROJ/branding/device.conf"
@@ -36,7 +37,11 @@ for v in PROJ KERNEL_SRC KMI_REF_TREE KMI_REF_SYSTEM_TREE CLANG_DIR; do
   esac
 done
 
-hdr "$DEVICE_FULL_LABEL — variant: $VARIANT"
+TAG="$VARIANT"
+ADDONS=()
+[[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspaces); TAG="$VARIANT-droidspaces"; }
+
+hdr "$DEVICE_FULL_LABEL — variant: $TAG"
 
 [[ -f "$KERNEL_SRC/Makefile" ]] || die "no kernel source at $KERNEL_SRC/Makefile"
 for _t in bin/clang bin/clang++ bin/llvm-ar bin/llvm-strip bin/llvm-objcopy bin/ld.lld; do
@@ -83,8 +88,8 @@ echo "   release       : $EXPECT_REL (${KBUILD_BUILD_USER}@${KBUILD_BUILD_HOST})
 echo "   KMI target    : $MODULE_LAYOUT ($NKO_VENDOR vendor + $NKO_SYSTEM system_dlkm modules, $NSTOCK_SYMS stock exports)"
 echo "   gate python   : $SYSPY"
 
-KOUT="${KOUT:-$PROJ/.build/out-$VARIANT}"
-OUT="$PROJ/out/$VARIANT"
+KOUT="${KOUT:-$PROJ/.build/out-$TAG}"
+OUT="$PROJ/out/$TAG"
 mkdir -p "$KOUT" "$OUT" "$PROJ/.build/logs"
 
 export PATH="$CLANG_DIR/bin:$PATH"
@@ -143,7 +148,17 @@ if [[ "$GATE_ONLY" == 0 ]]; then
     die "gki_defconfig failed"
   }
 
+  for a in "${ADDONS[@]}"; do
+    step "Applying addon: $a"
+    "$PROJ/core/addon.sh" "$a" "$KERNEL_SRC" || die "addon $a failed to apply"
+  done
+
   FRAGS=("$PROJ/config/vanilla_defconfig")
+  SOFT_FRAGS=()
+  for a in "${ADDONS[@]}"; do
+    FRAGS+=("$PROJ/addons/$a/required.fragment")
+    [[ -f "$PROJ/addons/$a/optional.fragment" ]] && SOFT_FRAGS+=("$PROJ/addons/$a/optional.fragment")
+  done
   for f in "${FRAGS[@]}"; do [[ -f "$f" ]] || die "missing fragment $f"; done
   if grep -n '^CONFIG_LOCALVERSION' "${FRAGS[@]}"; then
     die "a config fragment sets CONFIG_LOCALVERSION — remove it; build.sh owns the brand"
@@ -165,7 +180,7 @@ if [[ "$GATE_ONLY" == 0 ]]; then
   } > "$COMPOSED"
 
   step "Merging ${FRAGS[*]#$PROJ/} + brand ($LOCALVERSION_STR)"
-  "$KERNEL_SRC/scripts/kconfig/merge_config.sh" -m -r -O "$KOUT" "$KOUT/.config" "$COMPOSED" > "$KOUT/merge_config.log" 2>&1
+  "$KERNEL_SRC/scripts/kconfig/merge_config.sh" -m -r -O "$KOUT" "$KOUT/.config" "$COMPOSED" ${SOFT_FRAGS[@]+"${SOFT_FRAGS[@]}"} > "$KOUT/merge_config.log" 2>&1
   "${MK[@]}" olddefconfig > "$KOUT/olddefconfig.log" 2>&1 || {
     tail -30 "$KOUT/olddefconfig.log" >&2
     die "olddefconfig failed"
@@ -179,6 +194,14 @@ if [[ "$GATE_ONLY" == 0 ]]; then
   ok "Kernel compilation complete"
 
 fi
+
+SOFT_MISS=()
+for f in ${SOFT_FRAGS[@]+"${SOFT_FRAGS[@]}"}; do
+  while IFS= read -r l; do
+    [[ "$l" == CONFIG_*=* ]] && { grep -qxF "$l" "$KOUT/.config" || SOFT_MISS+=("${l%%=*}"); }
+  done < "$f"
+done
+[[ ${#SOFT_MISS[@]} -eq 0 ]] || warn "optional addon options not enabled after olddefconfig: ${SOFT_MISS[*]}"
 
 SYMVERS="$KOUT/vmlinux.symvers"
 MODSYMVERS="$KOUT/Module.symvers"
@@ -217,7 +240,8 @@ while read -r p cfg sym; do
   [[ "$cfg" == "-" ]] || grep -qx "$cfg=y" "$DOTCFG" || MISS+="  $p: $cfg is not =y"$'\n'
   [[ "$sym" == "-" ]] || awk -v s="$sym" '$3==s{f=1} END{exit !f}' "$SMAP" \
     || MISS+="  $p: probe symbol '$sym' missing from System.map"$'\n'
-done < <(awk '!/^[[:space:]]*(#|$)/' "$PROJ/base/series")
+done < <(awk '!/^[[:space:]]*(#|$)/' "$PROJ/base/series" \
+         $(for a in ${ADDONS[@]+"${ADDONS[@]}"}; do echo "$PROJ/addons/$a/series"; done))
 
 [[ -z "$MISS" ]] || die "built kernel is missing configured features or patch symbols:
 $MISS"
@@ -290,7 +314,7 @@ L6=${PIPESTATUS[0]}
 set -e
 echo
 if [[ "$L1" == 0 && "$L2" == 0 && "$L3" == 0 && "$S1" == 0 && "$S2" == 0 && "$S3" == 0 && "$L4" == 0 && "$L5" == 0 && "$L6" == 0 ]]; then
-  STAGED="$PROJ/.build/staged-$VARIANT"
+  STAGED="$PROJ/.build/staged-$TAG"
   rm -rf "$STAGED"; mkdir -p "$STAGED"
   for f in Image Image.gz Image.lz4; do
     [[ -f "$KOUT/arch/arm64/boot/$f" ]] || die "missing $KOUT/arch/arm64/boot/$f"

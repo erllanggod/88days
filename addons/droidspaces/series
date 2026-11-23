@@ -1,0 +1,1 @@
+002-sysvipc.patch CONFIG_SYSVIPC __arm64_sys_semget
