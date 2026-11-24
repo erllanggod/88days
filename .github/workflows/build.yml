@@ -22,6 +22,9 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     steps:
+      - name: Start timer
+        run: echo "BUILD_START=$(date +%s)" >> "$GITHUB_ENV"
+
       - name: Checkout builder
         uses: actions/checkout@v4
         with:
@@ -99,11 +102,8 @@ jobs:
       - name: Package AnyKernel3 zip
         run: core/package.sh "$BUILD_TAG"
 
-      - name: Upload
-        uses: actions/upload-artifact@v4
-        with:
-          name: DumpC2J-${{ env.BUILD_TAG }}
-          path: |
-            dist/*.zip
-            dist/SHA256SUMS
-          if-no-files-found: error
+      - name: Post to Telegram
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.GRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: core/telegram.sh "$BUILD_TAG"
