@@ -1,4 +1,4 @@
-name: Build
+name: maketr0uble
 
 on:
   workflow_dispatch:
