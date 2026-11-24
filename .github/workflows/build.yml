@@ -109,10 +109,10 @@ jobs:
           ./build.sh vanilla $BUILD_FLAGS
 
       - name: Package AnyKernel3 zip
-        run: ship/package.sh "$BUILD_TAG"
+        run: release/package.sh "$BUILD_TAG"
 
       - name: Post to Telegram
         env:
           TELEGRAM_TOKEN: ${{ secrets.GRAM_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: ship/telegram/post.sh "$BUILD_TAG"
+        run: release/telegram/post.sh "$BUILD_TAG"

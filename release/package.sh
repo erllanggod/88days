@@ -4,8 +4,8 @@ PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"; cd "$PROJ"
 die() { echo "ERROR: $*" >&2; exit 1; }
 
 VARIANT="${1:-vanilla}"
-source "$PROJ/gki/identity/device.conf"
-source "$PROJ/pins.lock"
+source "$PROJ/main/branding/device.conf"
+source "$PROJ/main/config/pins.lock"
 
 STAGED="$PROJ/.build/staged-$VARIANT"
 OUT="$PROJ/out/$VARIANT"
@@ -26,7 +26,7 @@ BANNER="$(LC_ALL=C grep -aom1 'Linux version [^ ]*' "$STAGED/Image" | awk '{prin
 
 DATE="$(date -u +%Y%m%d)"
 AK="$PROJ/.build/ak3-$VARIANT"
-rm -rf "$AK"; cp -r "$PROJ/ship/anykernel" "$AK"
+rm -rf "$AK"; cp -r "$PROJ/release/anykernel" "$AK"
 rm -f "$AK"/Image* "$AK"/zImage*
 cp "$STAGED/Image" "$AK/Image"
 for t in magiskboot busybox magiskpolicy; do

@@ -2,9 +2,9 @@
 set -euo pipefail
 
 PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-TAG="${1:?usage: ship/telegram/post.sh <tag>}"
+TAG="${1:?usage: release/telegram/post.sh <tag>}"
 
-source "$PROJ/gki/identity/device.conf"
+source "$PROJ/main/branding/device.conf"
 : "${TELEGRAM_TOKEN:?TELEGRAM_TOKEN is empty}"
 : "${TELEGRAM_CHAT_ID:?TELEGRAM_CHAT_ID is empty}"
 API="${TELEGRAM_API_BASE:-https://api.telegram.org}/bot${TELEGRAM_TOKEN}"
@@ -22,10 +22,10 @@ export DURATION="$((DUR / 60))m $((DUR % 60))s"
 export BUILD_DATE="$(date -u '+%Y-%m-%d %H:%M UTC')"
 export TG_TITLE="${BRAND} · Vanilla"
 export DROIDSPACES=$([[ "$TAG" == *droidspaces* ]] && echo 1 || echo 0)
-export CHANGELOG="$("$PROJ/ship/telegram/changelog.sh" || true)"
+export CHANGELOG="$("$PROJ/release/telegram/changelog.sh" || true)"
 
 PAYLOAD="$(mktemp)"; trap 'rm -f "$PAYLOAD"' EXIT
-python3 "$PROJ/ship/telegram/payload.py" "$ZIP" "$PAYLOAD"
+python3 "$PROJ/release/telegram/payload.py" "$ZIP" "$PAYLOAD"
 
 R="$(curl -sS --max-time 900 -X POST "$API/sendRichMessage" \
   -F chat_id="$TELEGRAM_CHAT_ID" -F "rich_message=<$PAYLOAD" \
