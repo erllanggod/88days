@@ -70,29 +70,13 @@ jobs:
           test "$(wc -l < .build/kmi/stock/stock.symvers)" -eq 9090
 
       - name: Install dependencies
-        run: |
-          sudo apt-get update -q
-          sudo apt-get install -y -q build-essential bc bison flex libssl-dev libelf-dev dwarves \
-            lz4 zstd cpio python3 zip unzip xxd rsync gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
-          pahole --version
+        run: .github/runner/deps.sh
 
       - name: Fetch Android clang r510928
-        run: |
-          mkdir -p .build/clang
-          curl -fsSL --retry 3 "$CLANG_URL" | tar -xz -C .build/clang
-          cat .build/clang/AndroidVersion.txt || true
-          grep -q r510928 .build/clang/AndroidVersion.txt
-          .build/clang/bin/clang --version | head -1
+        run: prep/clang/aosp.sh .build/clang
 
       - name: Fetch arm64 AnyKernel tools (magiskboot, busybox, magiskpolicy)
-        run: |
-          curl -fsSL --retry 3 -o magisk.apk "$MAGISK_URL"
-          for t in magiskboot busybox magiskpolicy; do
-            unzip -p magisk.apk "lib/arm64-v8a/lib$t.so" > "$RUNNER_TEMP/$t"
-            chmod +x "$RUNNER_TEMP/$t"
-            file "$RUNNER_TEMP/$t" | grep -q 'ARM aarch64'
-          done
-          echo "AK_TOOLS_ARM64=$RUNNER_TEMP" >> "$GITHUB_ENV"
+        run: .github/runner/tools.sh
 
       - name: Resolve build tag
         run: |
