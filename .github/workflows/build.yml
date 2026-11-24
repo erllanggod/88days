@@ -73,7 +73,7 @@ jobs:
         run: .github/runner/deps.sh
 
       - name: Fetch Android clang r510928
-        run: prep/clang/aosp.sh .build/clang
+        run: prep/aosp.sh .build/clang
 
       - name: Fetch arm64 AnyKernel tools (magiskboot, busybox, magiskpolicy)
         run: .github/runner/tools.sh
