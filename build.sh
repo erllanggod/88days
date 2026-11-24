@@ -150,14 +150,16 @@ if [[ "$GATE_ONLY" == 0 ]]; then
 
   for a in "${ADDONS[@]}"; do
     step "Applying addon: $a"
-    "$PROJ/core/addon.sh" "$a" "$KERNEL_SRC" || die "addon $a failed to apply"
+    "$PROJ/core/addon.sh" apply "$a" "$KERNEL_SRC" || die "addon $a failed to apply"
   done
 
   FRAGS=("$PROJ/config/vanilla_defconfig")
   SOFT_FRAGS=()
   for a in "${ADDONS[@]}"; do
-    FRAGS+=("$PROJ/addons/$a/required.fragment")
-    [[ -f "$PROJ/addons/$a/optional.fragment" ]] && SOFT_FRAGS+=("$PROJ/addons/$a/optional.fragment")
+    "$PROJ/core/addon.sh" required "$a" > "$KOUT/addon-$a.required"
+    "$PROJ/core/addon.sh" optional "$a" > "$KOUT/addon-$a.optional"
+    FRAGS+=("$KOUT/addon-$a.required")
+    SOFT_FRAGS+=("$KOUT/addon-$a.optional")
   done
   for f in "${FRAGS[@]}"; do [[ -f "$f" ]] || die "missing fragment $f"; done
   if grep -n '^CONFIG_LOCALVERSION' "${FRAGS[@]}"; then
@@ -240,8 +242,8 @@ while read -r p cfg sym; do
   [[ "$cfg" == "-" ]] || grep -qx "$cfg=y" "$DOTCFG" || MISS+="  $p: $cfg is not =y"$'\n'
   [[ "$sym" == "-" ]] || awk -v s="$sym" '$3==s{f=1} END{exit !f}' "$SMAP" \
     || MISS+="  $p: probe symbol '$sym' missing from System.map"$'\n'
-done < <(awk '!/^[[:space:]]*(#|$)/' "$PROJ/base/series" \
-         $(for a in ${ADDONS[@]+"${ADDONS[@]}"}; do echo "$PROJ/addons/$a/series"; done))
+done < <({ awk '!/^[[:space:]]*(#|$)/' "$PROJ/base/series"
+           for a in ${ADDONS[@]+"${ADDONS[@]}"}; do "$PROJ/core/addon.sh" probes "$a"; done; })
 
 [[ -z "$MISS" ]] || die "built kernel is missing configured features or patch symbols:
 $MISS"

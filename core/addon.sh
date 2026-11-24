@@ -1,19 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ADDON="${1:?usage: core/addon.sh <addon> <kernel_dir>}"
-KSRC="${2:?kernel dir}"
+CMD="${1:?usage: core/addon.sh apply|required|optional|probes <addon> [kernel_dir]}"
+ADDON="${2:?addon name}"
 PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-DIR="$PROJ/addons/$ADDON"
+MANIFEST="$PROJ/addons/$ADDON.sh"
 
-[[ -d "$DIR/kabi" ]] || { echo "addon '$ADDON' has no kabi/ directory" >&2; exit 1; }
+[[ -f "$MANIFEST" ]] || { echo "unknown addon '$ADDON' (no $MANIFEST)" >&2; exit 1; }
+PATCHES=(); REQUIRED=(); OPTIONAL=(); PROBES=()
+source "$MANIFEST"
 
-shopt -s nullglob
-PATCHES=("$DIR"/kabi/*.patch)
-[[ ${#PATCHES[@]} -gt 0 ]] || { echo "addon '$ADDON': no patches" >&2; exit 1; }
-
-for p in "${PATCHES[@]}"; do
-  git -C "$KSRC" apply --check "$p" 2>/dev/null || { echo "addon '$ADDON': ${p##*/} does not apply cleanly" >&2; exit 1; }
-  git -C "$KSRC" apply "$p"
-  echo "   applied ${p##*/}"
-done
+case "$CMD" in
+  apply)
+    KSRC="${3:?kernel dir}"
+    [[ ${#PATCHES[@]} -gt 0 ]] || { echo "addon '$ADDON' lists no patches" >&2; exit 1; }
+    for p in "${PATCHES[@]}"; do
+      f="$PROJ/patches/$p.patch"
+      [[ -f "$f" ]] || { echo "addon '$ADDON': missing $f" >&2; exit 1; }
+      git -C "$KSRC" apply --check "$f" 2>/dev/null || { echo "addon '$ADDON': $p.patch does not apply cleanly" >&2; exit 1; }
+      git -C "$KSRC" apply "$f"
+      echo "   applied $p.patch"
+    done ;;
+  required) for c in ${REQUIRED[@]+"${REQUIRED[@]}"}; do echo "CONFIG_$c=y"; done ;;
+  optional) for c in ${OPTIONAL[@]+"${OPTIONAL[@]}"}; do echo "CONFIG_$c=y"; done ;;
+  probes)   for p in ${PROBES[@]+"${PROBES[@]}"}; do set -- $p; echo "- CONFIG_$1 $2"; done ;;
+  *) echo "unknown command '$CMD'" >&2; exit 2 ;;
+esac
