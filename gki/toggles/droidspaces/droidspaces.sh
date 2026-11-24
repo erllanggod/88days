@@ -1,4 +1,4 @@
-PATCHES=(kabi/bore-relocate kabi/sysvipc)
+PATCHES=(bore-relocate sysvipc)
 
 REQUIRED=(SYSVIPC POSIX_MQUEUE IPC_NS PID_NS DEVTMPFS NETFILTER_XT_MATCH_ADDRTYPE)
 

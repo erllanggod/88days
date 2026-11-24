@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CMD="${1:?usage: core/addon.sh apply|required|optional|probes <addon> [kernel_dir]}"
+CMD="${1:?usage: gki/toggles/load.sh apply|required|optional|probes <addon> [kernel_dir]}"
 ADDON="${2:?addon name}"
-PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-MANIFEST="$PROJ/addons/$ADDON.sh"
+PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+MANIFEST="$PROJ/gki/toggles/$ADDON/$ADDON.sh"
 
 [[ -f "$MANIFEST" ]] || { echo "unknown addon '$ADDON' (no $MANIFEST)" >&2; exit 1; }
 PATCHES=(); REQUIRED=(); OPTIONAL=(); PROBES=()
@@ -15,7 +15,7 @@ case "$CMD" in
     KSRC="${3:?kernel dir}"
     [[ ${#PATCHES[@]} -gt 0 ]] || { echo "addon '$ADDON' lists no patches" >&2; exit 1; }
     for p in "${PATCHES[@]}"; do
-      f="$PROJ/patches/$p.patch"
+      f="$PROJ/gki/abi/$p.patch"
       [[ -f "$f" ]] || { echo "addon '$ADDON': missing $f" >&2; exit 1; }
       git -C "$KSRC" apply --check "$f" 2>/dev/null || { echo "addon '$ADDON': $p.patch does not apply cleanly" >&2; exit 1; }
       git -C "$KSRC" apply "$f"

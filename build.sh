@@ -24,12 +24,12 @@ while [[ $# -gt 0 ]]; do
 done
 [[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--gate-only] [--jobs N]"
 
-[[ -f "$PROJ/branding/device.conf" ]] || die "missing $PROJ/branding/device.conf"
-source "$PROJ/branding/device.conf"
+[[ -f "$PROJ/gki/identity/device.conf" ]] || die "missing $PROJ/gki/identity/device.conf"
+source "$PROJ/gki/identity/device.conf"
 [[ -f "$PROJ/pins.lock" ]] && source "$PROJ/pins.lock"
 
 [[ "${MODULE_LAYOUT:-}" =~ ^0x[0-9a-fA-F]{8}$ ]] || die \
-  "branding/device.conf MODULE_LAYOUT is empty or not an 8-digit hex CRC ('${MODULE_LAYOUT:-}')"
+  "gki/identity/device.conf MODULE_LAYOUT is empty or not an 8-digit hex CRC ('${MODULE_LAYOUT:-}')"
 
 for v in PROJ KERNEL_SRC KMI_REF_TREE KMI_REF_SYSTEM_TREE CLANG_DIR; do
   case "${!v:-}" in
@@ -64,7 +64,7 @@ LOCALVERSION_STR="-${BRAND}"
 EXPECT_REL="${KSRC_VER}${LOCALVERSION_STR}"
 
 for v in BRAND KBUILD_BUILD_USER KBUILD_BUILD_HOST; do
-  [[ "${!v:-}" =~ ^[A-Za-z0-9._-]+$ ]] || die "branding/device.conf $v='${!v:-}' — use only [A-Za-z0-9._-]"
+  [[ "${!v:-}" =~ ^[A-Za-z0-9._-]+$ ]] || die "gki/identity/device.conf $v='${!v:-}' — use only [A-Za-z0-9._-]"
 done
 (( ${#EXPECT_REL} <= 64 )) || die "release '$EXPECT_REL' exceeds 64 chars (__NEW_UTS_LEN)"
 
@@ -150,14 +150,14 @@ if [[ "$GATE_ONLY" == 0 ]]; then
 
   for a in "${ADDONS[@]}"; do
     step "Applying addon: $a"
-    "$PROJ/core/addon.sh" apply "$a" "$KERNEL_SRC" || die "addon $a failed to apply"
+    "$PROJ/gki/toggles/load.sh" apply "$a" "$KERNEL_SRC" || die "addon $a failed to apply"
   done
 
-  FRAGS=("$PROJ/config/vanilla_defconfig")
+  FRAGS=("$PROJ/gki/defconfigs/vanilla_defconfig")
   SOFT_FRAGS=()
   for a in "${ADDONS[@]}"; do
-    "$PROJ/core/addon.sh" required "$a" > "$KOUT/addon-$a.required"
-    "$PROJ/core/addon.sh" optional "$a" > "$KOUT/addon-$a.optional"
+    "$PROJ/gki/toggles/load.sh" required "$a" > "$KOUT/addon-$a.required"
+    "$PROJ/gki/toggles/load.sh" optional "$a" > "$KOUT/addon-$a.optional"
     FRAGS+=("$KOUT/addon-$a.required")
     SOFT_FRAGS+=("$KOUT/addon-$a.optional")
   done
@@ -242,18 +242,18 @@ while read -r p cfg sym; do
   [[ "$cfg" == "-" ]] || grep -qx "$cfg=y" "$DOTCFG" || MISS+="  $p: $cfg is not =y"$'\n'
   [[ "$sym" == "-" ]] || awk -v s="$sym" '$3==s{f=1} END{exit !f}' "$SMAP" \
     || MISS+="  $p: probe symbol '$sym' missing from System.map"$'\n'
-done < <({ awk '!/^[[:space:]]*(#|$)/' "$PROJ/base/series"
-           for a in ${ADDONS[@]+"${ADDONS[@]}"}; do "$PROJ/core/addon.sh" probes "$a"; done; })
+done < <({ awk '!/^[[:space:]]*(#|$)/' "$PROJ/gki/base/series"
+           for a in ${ADDONS[@]+"${ADDONS[@]}"}; do "$PROJ/gki/toggles/load.sh" probes "$a"; done; })
 
 [[ -z "$MISS" ]] || die "built kernel is missing configured features or patch symbols:
 $MISS"
-ok "Feature gate: all composed_defconfig switches active and all $(awk '!/^[[:space:]]*(#|$)/ && $3!="-"' "$PROJ/base/series" | wc -l) patch probe symbols present in System.map"
+ok "Feature gate: all composed_defconfig switches active and all $(awk '!/^[[:space:]]*(#|$)/ && $3!="-"' "$PROJ/gki/base/series" | wc -l) patch probe symbols present in System.map"
 
 hdr "Running 6-Layer KMI / ABI Gate Suite ($VARIANT)"
 set +e
 
 step "Layer 1 (Vendor) — symbol CRCs vs $NKO_VENDOR vendor_boot + vendor_dlkm modules"
-"$SYSPY" "$PROJ/kabi/kmi_check.py" "$SYMVERS" "$KMI_REF_TREE" \
+"$SYSPY" "$PROJ/gki/checks/kmi_check.py" "$SYMVERS" "$KMI_REF_TREE" \
   --extra-exports "$KMI_REF_SYSTEM_TREE/exports.tsv" \
   --expect-vermagic "$KMI_EXPECT_VERMAGIC" \
   --expect-module-layout "$MODULE_LAYOUT" 2>&1 | tee "$OUT/kmi-check.log"
@@ -261,7 +261,7 @@ L1=${PIPESTATUS[0]}
 
 step "Layer 2 (Vendor) — protected exports (MODULE_SIG_PROTECT)"
 if grep -q '^CONFIG_MODULE_SIG_PROTECT=y' "$DOTCFG" 2>/dev/null; then
-  "$SYSPY" "$PROJ/kabi/protect_check.py" "$VMLINUX" "$KMI_REF_TREE" \
+  "$SYSPY" "$PROJ/gki/checks/protect_check.py" "$VMLINUX" "$KMI_REF_TREE" \
     --extra-exports "$KMI_REF_SYSTEM_TREE/exports.tsv" 2>&1 | tee "$OUT/protect-check.log"
   L2=${PIPESTATUS[0]}
 else
@@ -270,20 +270,20 @@ else
 fi
 
 step "Layer 3 (Vendor) — full module import accounting + whitelist check"
-"$SYSPY" "$PROJ/kabi/import_check.py" "$SYMVERS" "$KMI_REF_TREE" \
+"$SYSPY" "$PROJ/gki/checks/import_check.py" "$SYMVERS" "$KMI_REF_TREE" \
   --extra-exports "$KMI_REF_SYSTEM_TREE/exports.tsv" \
   --raw-symbollist "$SYMBOLLIST" 2>&1 | tee "$OUT/import-check.log"
 L3=${PIPESTATUS[0]}
 
 step "Layer 1 (system_dlkm) — symbol CRCs vs $NKO_SYSTEM GKI modules"
-"$SYSPY" "$PROJ/kabi/kmi_check.py" "$SYMVERS" "$KMI_REF_SYSTEM_TREE" \
+"$SYSPY" "$PROJ/gki/checks/kmi_check.py" "$SYMVERS" "$KMI_REF_SYSTEM_TREE" \
   --expect-vermagic "$KMI_SYSTEM_EXPECT_VERMAGIC" \
   --expect-module-layout "$MODULE_LAYOUT" 2>&1 | tee "$OUT/kmi-check-system.log"
 S1=${PIPESTATUS[0]}
 
 step "Layer 2 (system_dlkm) — protected exports (MODULE_SIG_PROTECT)"
 if grep -q '^CONFIG_MODULE_SIG_PROTECT=y' "$DOTCFG" 2>/dev/null; then
-  "$SYSPY" "$PROJ/kabi/protect_check.py" "$VMLINUX" "$KMI_REF_SYSTEM_TREE" 2>&1 \
+  "$SYSPY" "$PROJ/gki/checks/protect_check.py" "$VMLINUX" "$KMI_REF_SYSTEM_TREE" 2>&1 \
     | tee "$OUT/protect-check-system.log"
   S2=${PIPESTATUS[0]}
 else
@@ -292,24 +292,24 @@ else
 fi
 
 step "Layer 3 (system_dlkm) — full module import accounting + whitelist check"
-"$SYSPY" "$PROJ/kabi/import_check.py" "$SYMVERS" "$KMI_REF_SYSTEM_TREE" \
+"$SYSPY" "$PROJ/gki/checks/import_check.py" "$SYMVERS" "$KMI_REF_SYSTEM_TREE" \
   --raw-symbollist "$SYMBOLLIST" 2>&1 | tee "$OUT/import-check-system.log"
 S3=${PIPESTATUS[0]}
 
 step "Layer 4 (Stock vmlinux symvers) — strict 100% check vs all $NSTOCK_SYMS stock vmlinux exports"
-"$SYSPY" "$PROJ/kabi/stock_symvers_check.py" "$SYMVERS" "$STOCK_SYMVERS" \
+"$SYSPY" "$PROJ/gki/checks/stock_symvers_check.py" "$SYMVERS" "$STOCK_SYMVERS" \
   --required-tsv "$KMI_REF_TREE/required.tsv" \
   --required-tsv "$KMI_REF_SYSTEM_TREE/required.tsv" \
   --strict-all-stock 2>&1 | tee "$OUT/stock-symvers-check.log"
 L4=${PIPESTATUS[0]}
 
 step "Layer 5 (Duplicate export guard) — 0 overlap between vmlinux exports and $((NKO_VENDOR + NKO_SYSTEM)) stock modules"
-"$SYSPY" "$PROJ/kabi/dup_export_check.py" "$SYMVERS" "$KMI_REF_TREE" "$KMI_REF_SYSTEM_TREE" 2>&1 \
+"$SYSPY" "$PROJ/gki/checks/dup_export_check.py" "$SYMVERS" "$KMI_REF_TREE" "$KMI_REF_SYSTEM_TREE" 2>&1 \
   | tee "$OUT/dup-export-check.log"
 L5=${PIPESTATUS[0]}
 
 step "Layer 6 (kCFI) — vmlinux __kcfi_typeid_* vs stock .ko"
-"$SYSPY" "$PROJ/kabi/kcfi_check.py" "$VMLINUX" "$SYMVERS" "$KMI_REF_TREE" "$KMI_REF_SYSTEM_TREE" 2>&1 \
+"$SYSPY" "$PROJ/gki/checks/kcfi_check.py" "$VMLINUX" "$SYMVERS" "$KMI_REF_TREE" "$KMI_REF_SYSTEM_TREE" 2>&1 \
   | tee "$OUT/kcfi-check.log"
 L6=${PIPESTATUS[0]}
 
