@@ -22,7 +22,7 @@ export DURATION="$((DUR / 60))m $((DUR % 60))s"
 export BUILD_DATE="$(date -u '+%Y-%m-%d %H:%M UTC')"
 export TG_TITLE="${BRAND} · Vanilla"
 export DROIDSPACES=$([[ "$TAG" == *droidspaces* ]] && echo 1 || echo 0)
-export CHANGELOG="$(cat "$PROJ/release/changelog.txt" 2>/dev/null || true)"
+export CHANGELOG="$("$PROJ/core/changelog.sh" || true)"
 
 PAYLOAD="$(mktemp)"; trap 'rm -f "$PAYLOAD"' EXIT
 python3 "$PROJ/core/telegram_payload.py" "$ZIP" "$PAYLOAD"

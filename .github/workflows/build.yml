@@ -10,6 +10,7 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 env:
   CLANG_URL: https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android15-release/clang-r510928.tar.gz
@@ -28,7 +29,15 @@ jobs:
       - name: Checkout builder
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           persist-credentials: false
+
+      - name: Find last successful build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          base="$(gh api "repos/$GITHUB_REPOSITORY/actions/workflows/build.yml/runs?status=success&per_page=1" --jq '.workflow_runs[0].head_sha // empty' || true)"
+          echo "CHANGELOG_BASE=$base" >> "$GITHUB_ENV"
 
       - name: Checkout kernel source (private)
         uses: actions/checkout@v4
