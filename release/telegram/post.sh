@@ -15,12 +15,16 @@ OUT="$PROJ/out/$TAG"
 
 DUR=$(( $(date +%s) - ${BUILD_START:-$(date +%s)} ))
 export KERNEL_REL="$(cat "$OUT/kernel.release")"
-export CLANG_STR="$("${CLANG_DIR:-$PROJ/.build/clang}/bin/clang" --version | head -1 | sed -E 's/ \(https.*//; s/^.*clang version/clang/')"
+CLANG_L="$("${CLANG_DIR:-$PROJ/.build/clang}/bin/clang" --version | head -1)"
+CLANG_V="$(sed -nE 's/.*clang version ([0-9.]+).*/\1/p' <<<"$CLANG_L")"
+CLANG_R="$(sed -nE 's/.*based on (r[0-9a-z]+).*/\1/p' <<<"$CLANG_L")"
+export CLANG_STR="AOSP Clang ${CLANG_V}${CLANG_R:+ ($CLANG_R)}"
+export KERNEL_VER="${KERNEL_REL%%-*}"
 export SIZE="$(du -h "$ZIP" | cut -f1)"
 export SHA256="$(sha256sum "$ZIP" | cut -d' ' -f1)"
 export DURATION="$((DUR / 60))m $((DUR % 60))s"
 export BUILD_DATE="$(date -u '+%Y-%m-%d %H:%M UTC')"
-export TG_TITLE="${BRAND} · Vanilla"
+export TG_TITLE="${BRAND} ${KERNEL_VER}"
 export DROIDSPACES=$([[ "$TAG" == *droidspaces* ]] && echo 1 || echo 0)
 export CHANGELOG="$("$PROJ/release/telegram/changelog.sh" || true)"
 

@@ -24,7 +24,8 @@ BANNER="$(LC_ALL=C grep -aom1 'Linux version [^ ]*' "$STAGED/Image" | awk '{prin
 
 : "${AK_TOOLS_ARM64:?set AK_TOOLS_ARM64 to a dir holding arm64 magiskboot, busybox, magiskpolicy}"
 
-DATE="$(date -u +%Y%m%d)"
+DATE="$(TZ=Asia/Jakarta date +%Y%m%d)"
+STAMP="$(TZ=Asia/Jakarta date +%Y%m%d-%H%M)"
 AK="$PROJ/.build/ak3-$VARIANT"
 rm -rf "$AK"; cp -r "$PROJ/release/anykernel" "$AK"
 rm -f "$AK"/Image* "$AK"/zImage*
@@ -85,7 +86,7 @@ ui_print " ";
 AKEOF
 
 mkdir -p "$PROJ/dist"
-ZIP="$PROJ/dist/${BRAND}-Vanilla-${DATE}.zip"
+ZIP="$PROJ/dist/${BRAND}-Vanilla-${STAMP}.zip"
 rm -f "$ZIP"
 ( cd "$AK" && zip -r9 "$ZIP" . -x '.git*' >/dev/null )
 ( cd "$PROJ/dist" && sha256sum "$(basename "$ZIP")" > SHA256SUMS )
