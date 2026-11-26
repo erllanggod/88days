@@ -15,7 +15,7 @@ on:
           - thin
         default: none
       clang:
-        description: Clang toolchain (Neutron only with Thin LTO)
+        description: Clang toolchain
         type: choice
         options:
           - aosp
@@ -52,9 +52,6 @@ jobs:
           [ "${{ inputs.vanilla }}" = "true" ] && v+=(none)
           [ "${{ inputs.finasu }}" = "true" ] && v+=(finasu)
           [ ${#v[@]} -gt 0 ] || { echo "no variant selected" >&2; exit 1; }
-          if [ "${{ inputs.clang }}" = "neutron" ] && [ "${{ inputs.lto }}" = "none" ]; then
-            echo "Neutron clang is only used with Thin LTO, pick lto=thin or clang=aosp" >&2; exit 1
-          fi
           r="$(printf '%s\n' "${v[@]}" | jq -R . | jq -sc .)"
           echo "matrix=$(jq -nc --argjson r "$r" --arg l "${{ inputs.lto }}" '{root: $r, lto: [$l]}')" >> "$GITHUB_OUTPUT"
 
