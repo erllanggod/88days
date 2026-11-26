@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-# Neutron clang, always the latest build (antman pulls whatever is current).
 set -euo pipefail
 
 DEST="${1:-.build/clang}"
@@ -19,8 +18,6 @@ retry() {
 }
 retry ./antman -S
 
-# Latest Neutron needs a newer glibc than the runner has. antman's own patcher pulls glibc from
-# archlinux.org, which can fail silently, so fall back to fetching it from a package mirror.
 patch_glibc() {
   local g="$HOME/.neutron-tc/glibc" pe base idx pkg name
   rm -rf "$g"; mkdir -p "$g"

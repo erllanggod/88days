@@ -80,7 +80,6 @@ DETAIL="<b>Build Info:</b>
 🛠️ Builder Commit: <a href=\"${BURL}\">${BCOMMIT}</a>
 🏃 Run: <a href=\"${RURL}\">#${GITHUB_RUN_NUMBER:-0}</a>"
 
-# POST with retry on 429 (honours retry_after); the response body lands in $RESP.
 RESP=""
 send() {
   local method="$1"; shift
