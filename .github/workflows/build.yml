@@ -14,10 +14,6 @@ on:
         description: Droidspaces
         type: boolean
         default: false
-      finasu:
-        description: FinaSU + SUSFS
-        type: boolean
-        default: false
       lto:
         description: LTO mode
         type: choice
@@ -28,6 +24,10 @@ on:
         default: none
       nomount:
         description: NoMount
+        type: boolean
+        default: false
+      finasu:
+        description: FinaSU + SUSFS
         type: boolean
         default: false
       vanilla:
