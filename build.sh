@@ -41,7 +41,7 @@ done
 TAG="$VARIANT"
 ADDONS=()
 [[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
-[[ -z "$ROOT" || -f "$PROJ/main/etc/root/ksu/$ROOT/$ROOT.sh" ]] || die "unknown root '$ROOT'"
+[[ -z "$ROOT" || -f "$PROJ/main/etc/root/ksu/$ROOT.sh" ]] || die "unknown root '$ROOT'"
 [[ -n "$ROOT" ]] && TAG="$TAG-$ROOT"
 
 hdr "$DEVICE_FULL_LABEL — variant: $TAG"
