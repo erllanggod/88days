@@ -7,10 +7,10 @@ PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 HERE="$PROJ/main/etc/root"
 WORK="${ROOT_WORK:-$PROJ/.build/root}"
 
-[[ -f "$HERE/ksu/$ROOT.sh" ]] || { echo "unknown root '$ROOT' (no $HERE/ksu/$ROOT.sh)" >&2; exit 1; }
+[[ -f "$HERE/ksu/$ROOT/$ROOT.sh" ]] || { echo "unknown root '$ROOT' (no $HERE/ksu/$ROOT/$ROOT.sh)" >&2; exit 1; }
 REQUIRED=(); PROBES=(); ROOT_MAKEVARS=()
 source "$HERE/susfs/susfs.sh"
-source "$HERE/ksu/$ROOT.sh"
+source "$HERE/ksu/$ROOT/$ROOT.sh"
 
 fetch_pin() {
   local url="$1" ref="$2" dir="$3" depth="$4"

@@ -29,6 +29,7 @@ STAMP="$(TZ=Asia/Jakarta date +%Y%m%d-%H%M)"
 AK="$PROJ/.build/ak3-$VARIANT"
 rm -rf "$AK"; cp -r "$PROJ/release/anykernel" "$AK"
 rm -f "$AK"/Image* "$AK"/zImage*
+find "$AK" -name .gitkeep -delete
 cp "$STAGED/Image" "$AK/Image"
 for t in magiskboot busybox magiskpolicy; do
   cp "$AK_TOOLS_ARM64/$t" "$AK/tools/$t"; chmod 755 "$AK/tools/$t"
@@ -87,8 +88,8 @@ AKEOF
 
 mkdir -p "$PROJ/dist"
 LABEL="Vanilla"
-for _r in "$PROJ"/main/etc/root/ksu/*.sh; do
-  _n="$(basename "$_r" .sh)"
+for _r in "$PROJ"/main/etc/root/ksu/*/; do
+  _n="$(basename "$_r")"
   [[ "$VARIANT" == *-"$_n" ]] && LABEL="$("$PROJ/main/etc/root/load.sh" label "$_n")"
 done
 ZIP="$PROJ/dist/${BRAND}-${LABEL}-${STAMP}.zip"

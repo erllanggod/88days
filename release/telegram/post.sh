@@ -26,8 +26,8 @@ DURATION="$((DUR / 60))m $((DUR % 60))s"
 BUILD_DATE="$(date -u '+%Y-%m-%d %H:%M UTC')"
 
 ROOT_NAME=""
-for _r in "$PROJ"/main/etc/root/ksu/*.sh; do
-  _n="$(basename "$_r" .sh)"
+for _r in "$PROJ"/main/etc/root/ksu/*/; do
+  _n="$(basename "$_r")"
   [[ "$TAG" == *-"$_n" ]] && ROOT_NAME="$_n"
 done
 
