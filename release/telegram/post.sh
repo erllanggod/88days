@@ -47,7 +47,8 @@ ROOT_LINE=""
 if [[ -n "$ROOT_NAME" ]]; then
   _kv="$(sed -nE 's/.*KernelSU version: ([0-9]+).*/\1/p' "$OUT/build.log" | head -1)"
   _kn="$(sed -nE 's/.*KernelSU version full: (v[0-9][^-@ ]*).*/\1/p' "$OUT/build.log" | head -1)"
-  ROOT_LINE="${ROOT_LABEL} ${_kn}${_kv:+ ($_kv)}"
+  _ku="$(sed -nE 's/.*KERNEL_SU_UAPI_VERSION *= *([0-9]+).*/\1/p' "$PROJ/.build/root/$ROOT_NAME/uapi/supercall.h" 2>/dev/null | head -1)"
+  ROOT_LINE="${ROOT_LABEL} ${_kn}${_kv:+ ($_kv${_ku:+/$_ku})}"
 fi
 
 BULLETS=("ADIOS I/O Scheduler" "BORE Scheduler")
@@ -61,9 +62,7 @@ CAPTION="${BRAND} ${KERNEL_VER}"
 CAPTION+=$'\n'
 for b in "${BULLETS[@]}"; do CAPTION+=$'\n'"• $b"; done
 
-DETAIL="📋 <b>Build Detail</b>
-
-<b>Build Info:</b>
+DETAIL="<b>Build Info:</b>
 ⚙️ Clang: AOSP Clang ${CLANG_V}
 💾 Size: ${SIZE}
 🔐 SHA256: <code>${SHA256}</code>
