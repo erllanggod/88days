@@ -7,13 +7,14 @@ on:
         description: Droidspaces support
         type: boolean
         default: false
-      root:
-        description: Root solution (includes SUSFS)
-        type: choice
-        options:
-          - none
-          - finasu
-        default: none
+      vanilla:
+        description: Build Vanilla (no root)
+        type: boolean
+        default: true
+      finasu:
+        description: Build FinaSU + SUSFS
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -25,8 +26,26 @@ env:
   KERNEL_REF: 13dbecdba4678e4264db264378a3e326e9da2e75
 
 jobs:
-  vanilla:
-    name: vanilla (no LTO)
+  plan:
+    name: plan
+    runs-on: ubuntu-24.04
+    outputs:
+      matrix: ${{ steps.m.outputs.matrix }}
+    steps:
+      - id: m
+        run: |
+          v=()
+          [ "${{ inputs.vanilla }}" = "true" ] && v+=(none)
+          [ "${{ inputs.finasu }}" = "true" ] && v+=(finasu)
+          [ ${#v[@]} -gt 0 ] || { echo "no variant selected" >&2; exit 1; }
+          echo "matrix=$(printf '%s\n' "${v[@]}" | jq -R . | jq -sc '{root: .}')" >> "$GITHUB_OUTPUT"
+
+  build:
+    name: ${{ matrix.root == 'none' && 'vanilla' || matrix.root }}
+    needs: plan
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     steps:
@@ -91,8 +110,8 @@ jobs:
           if [ "${{ inputs.droidspaces }}" = "true" ]; then
             flags="$flags --droidspaces"; tag="$tag-droidspaces"
           fi
-          if [ "${{ inputs.root }}" != "none" ]; then
-            flags="$flags --root ${{ inputs.root }}"; tag="$tag-${{ inputs.root }}"
+          if [ "${{ matrix.root }}" != "none" ]; then
+            flags="$flags --root ${{ matrix.root }}"; tag="$tag-${{ matrix.root }}"
           fi
           echo "BUILD_FLAGS=$flags" >> "$GITHUB_ENV"
           echo "BUILD_TAG=$tag" >> "$GITHUB_ENV"
