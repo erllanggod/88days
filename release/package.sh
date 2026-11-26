@@ -90,7 +90,7 @@ mkdir -p "$PROJ/dist"
 LABEL="Vanilla"
 for _r in "$PROJ"/main/etc/root/ksu/*/; do
   _n="$(basename "$_r")"
-  [[ "$VARIANT" == *-"$_n" ]] && LABEL="$("$PROJ/main/etc/root/load.sh" label "$_n")"
+  [[ "$VARIANT" == *-"$_n" ]] && LABEL="$("$PROJ/main/etc/root/load.sh" label "$_n")-SUSFS"
 done
 ZIP="$PROJ/dist/${BRAND}-${LABEL}-${STAMP}.zip"
 rm -f "$ZIP"

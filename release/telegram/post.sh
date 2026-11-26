@@ -31,12 +31,10 @@ for _r in "$PROJ"/main/etc/root/ksu/*/; do
   [[ "$TAG" == *-"$_n" ]] && ROOT_NAME="$_n"
 done
 
-FEATURES="BORE, Reflex, ADIOS, kcompressd + le9uo, NTSync, BBRv3"
-[[ "$TAG" == *droidspaces* ]] && FEATURES="$FEATURES, Droidspaces"
+ROOT_LABEL=""; SUSFS_VERSION=""
 if [[ -n "$ROOT_NAME" ]]; then
   ROOT_LABEL="$("$PROJ/main/etc/root/load.sh" label "$ROOT_NAME")"
   SUSFS_VERSION="$(source "$PROJ/main/etc/root/susfs/susfs.sh"; echo "$SUSFS_VERSION")"
-  FEATURES="$FEATURES, $ROOT_LABEL, SUSFS $SUSFS_VERSION"
 fi
 
 KCOMMIT="$(git -C "$PROJ/.build/kernel-src" rev-parse --short=7 HEAD 2>/dev/null || echo "-")"
@@ -45,13 +43,28 @@ SRV="${GITHUB_SERVER_URL:-https://github.com}"
 BURL="$SRV/${GITHUB_REPOSITORY:-}/commit/$(git -C "$PROJ" rev-parse HEAD)"
 RURL="$SRV/${GITHUB_REPOSITORY:-}/actions/runs/${GITHUB_RUN_ID:-0}"
 
+ROOT_LINE=""
+if [[ -n "$ROOT_NAME" ]]; then
+  _kv="$(sed -nE 's/.*KernelSU version: ([0-9]+).*/\1/p' "$OUT/build.log" | head -1)"
+  _kn="$(sed -nE 's/.*KernelSU version full: (v[0-9][^-@ ]*).*/\1/p' "$OUT/build.log" | head -1)"
+  ROOT_LINE="${ROOT_LABEL} ${_kn}${_kv:+ ($_kv)}"
+fi
+
+BULLETS=("ADIOS I/O Scheduler" "BORE Scheduler")
+[[ "$TAG" == *droidspaces* ]] && BULLETS+=("Droidspaces")
+BULLETS+=("kcompressd + le9uo" "NTSync" "Reflex CPU Governor")
+[[ -n "$ROOT_NAME" ]] && BULLETS+=("SuSFS $SUSFS_VERSION")
+BULLETS+=("TCP: BBRv3" "No LTO")
+
 CAPTION="${BRAND} ${KERNEL_VER}"
+[[ -n "$ROOT_LINE" ]] && CAPTION+=$'\n'"$ROOT_LINE"
+CAPTION+=$'\n'
+for b in "${BULLETS[@]}"; do CAPTION+=$'\n'"• $b"; done
 
 DETAIL="📋 <b>Build Detail</b>
 
 <b>Build Info:</b>
 ⚙️ Clang: AOSP Clang ${CLANG_V}
-🧩 Features: $(esc "$FEATURES")
 💾 Size: ${SIZE}
 🔐 SHA256: <code>${SHA256}</code>
 ⏱️ Duration: ${DURATION}
