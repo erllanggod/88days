@@ -24,7 +24,7 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--root finasu] [--lto none|thin] [--gate-only] [--jobs N]"
+[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--root finasu] [--lto none|thin|full] [--gate-only] [--jobs N]"
 
 [[ -f "$PROJ/main/branding/device.conf" ]] || die "missing $PROJ/main/branding/device.conf"
 source "$PROJ/main/branding/device.conf"

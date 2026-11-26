@@ -13,6 +13,7 @@ on:
         options:
           - none
           - thin
+          - full
         default: none
       clang:
         description: Clang toolchain
@@ -112,6 +113,10 @@ jobs:
 
       - name: Install dependencies
         run: .github/runner/deps.sh
+
+      - name: Add swap (Full LTO)
+        if: inputs.lto == 'full'
+        run: .github/runner/swap.sh 28
 
       - name: Fetch Android clang r510928
         if: inputs.clang == 'aosp'
