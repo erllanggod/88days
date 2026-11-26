@@ -43,7 +43,7 @@ done
 TAG="$VARIANT"
 ADDONS=()
 [[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
-[[ "$NOMOUNT" == 1 ]] && TAG="$TAG-nomount"
+[[ "$NOMOUNT" == 1 ]] && { ADDONS+=(nomount); TAG="$TAG-nomount"; }
 [[ "$LTO" == none || -f "$PROJ/main/etc/lto/$LTO/$LTO.sh" ]] || die "unknown lto '$LTO'"
 [[ "$LTO" == none ]] || TAG="$TAG-$LTO"
 [[ -z "$ROOT" || -f "$PROJ/main/etc/root/ksu/$ROOT/$ROOT.sh" ]] || die "unknown root '$ROOT'"
@@ -170,20 +170,11 @@ if [[ "$GATE_ONLY" == 0 ]]; then
     "$PROJ/main/etc/root/load.sh" apply "$ROOT" "$KERNEL_SRC" || die "root $ROOT failed to integrate"
   fi
 
-  if [[ "$NOMOUNT" == 1 ]]; then
-    step "Integrating NoMount (latest upstream)"
-    "$PROJ/main/etc/nomount/load.sh" apply "$KERNEL_SRC" || die "NoMount failed to integrate"
-  fi
-
   FRAGS=("$PROJ/main/config/vanilla_defconfig")
   SOFT_FRAGS=()
   if [[ -n "$ROOT" ]]; then
     "$PROJ/main/etc/root/load.sh" required "$ROOT" > "$KOUT/root-$ROOT.required"
     FRAGS+=("$KOUT/root-$ROOT.required")
-  fi
-  if [[ "$NOMOUNT" == 1 ]]; then
-    "$PROJ/main/etc/nomount/load.sh" required > "$KOUT/nomount.required"
-    FRAGS+=("$KOUT/nomount.required")
   fi
   if [[ "$LTO" != none ]]; then
     "$PROJ/main/etc/lto/load.sh" required "$LTO" > "$KOUT/lto-$LTO.required"
@@ -288,8 +279,7 @@ while read -r p cfg sym; do
     || MISS+="  $p: probe symbol '$sym' missing from System.map"$'\n'
 done < <({ awk '!/^[[:space:]]*(#|$)/' "$PROJ/main/etc/cpatch/series"
            for a in ${ADDONS[@]+"${ADDONS[@]}"}; do "$PROJ/main/addons/load.sh" probes "$a"; done
-           [[ -z "$ROOT" ]] || "$PROJ/main/etc/root/load.sh" probes "$ROOT"
-           [[ "$NOMOUNT" != 1 ]] || "$PROJ/main/etc/nomount/load.sh" probes; })
+           [[ -z "$ROOT" ]] || "$PROJ/main/etc/root/load.sh" probes "$ROOT"; })
 
 [[ -z "$MISS" ]] || die "built kernel is missing configured features or patch symbols:
 $MISS"

@@ -3,6 +3,14 @@ name: maketr0uble
 on:
   workflow_dispatch:
     inputs:
+      finasu:
+        description: FinaSU + SUSFS
+        type: boolean
+        default: false
+      vanilla:
+        description: Vanilla
+        type: boolean
+        default: true
       clang:
         description: Clang toolchain
         type: choice
@@ -26,14 +34,6 @@ on:
         description: NoMount
         type: boolean
         default: false
-      finasu:
-        description: FinaSU + SUSFS
-        type: boolean
-        default: false
-      vanilla:
-        description: Vanilla
-        type: boolean
-        default: true
 
 permissions:
   contents: read
