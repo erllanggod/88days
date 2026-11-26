@@ -4,22 +4,22 @@ on:
   workflow_dispatch:
     inputs:
       droidspaces:
-        description: Droidspaces support
+        description: Droidspaces
         type: boolean
         default: false
       lto:
-        description: LTO mode (applies to every variant checked below)
+        description: LTO mode
         type: choice
         options:
           - none
           - thin
         default: none
       vanilla:
-        description: Build Vanilla
+        description: Vanilla
         type: boolean
         default: true
       finasu:
-        description: Build FinaSU + SUSFS
+        description: FinaSU + SUSFS
         type: boolean
         default: false
 
