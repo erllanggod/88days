@@ -54,7 +54,12 @@ BULLETS=("ADIOS I/O Scheduler" "BORE Scheduler")
 [[ "$TAG" == *droidspaces* ]] && BULLETS+=("Droidspaces")
 BULLETS+=("kcompressd + le9uo" "NTSync" "Reflex CPU Governor")
 [[ -n "$ROOT_NAME" ]] && BULLETS+=("SuSFS $SUSFS_VERSION")
-BULLETS+=("TCP: BBRv3" "No LTO")
+LTO_LABEL="No LTO"
+for _l in "$PROJ"/main/etc/lto/*/; do
+  _n="$(basename "$_l")"
+  [[ "$TAG" == *-"$_n" || "$TAG" == *-"$_n"-* ]] && LTO_LABEL="$("$PROJ/main/etc/lto/load.sh" label "$_n")"
+done
+BULLETS+=("TCP: BBRv3" "$LTO_LABEL")
 
 CAPTION="${BRAND} ${KERNEL_VER}"
 [[ -n "$ROOT_LINE" ]] && CAPTION+=$'\n'"$ROOT_LINE"

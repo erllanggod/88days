@@ -11,19 +11,20 @@ ok()   { echo "$(c '1;32')✓$(c 0) $*"; }
 warn() { echo "$(c '1;33')⚠$(c 0) $*" >&2; }
 die()  { echo "$(c '1;31')✗ ERROR: $*$(c 0)" >&2; exit 1; }
 
-VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; ROOT="${ROOT:-}"; JOBS="${JOBS:-$(nproc)}"
+VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; JOBS="${JOBS:-$(nproc)}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     vanilla)     VARIANT="$1" ;;
     --gate-only) GATE_ONLY=1 ;;
     --droidspaces) DROIDSPACES=1 ;;
     --root)      shift; ROOT="${1:-}" ;;
+    --lto)       shift; LTO="${1:-}" ;;
     --jobs)      shift; JOBS="${1:-}" ;;
     *)           die "unknown argument: $1" ;;
   esac
   shift
 done
-[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--root finasu] [--gate-only] [--jobs N]"
+[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--root finasu] [--lto none|thin] [--gate-only] [--jobs N]"
 
 [[ -f "$PROJ/main/branding/device.conf" ]] || die "missing $PROJ/main/branding/device.conf"
 source "$PROJ/main/branding/device.conf"
@@ -41,6 +42,8 @@ done
 TAG="$VARIANT"
 ADDONS=()
 [[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
+[[ "$LTO" == none || -f "$PROJ/main/etc/lto/$LTO/$LTO.sh" ]] || die "unknown lto '$LTO'"
+[[ "$LTO" == none ]] || TAG="$TAG-$LTO"
 [[ -z "$ROOT" || -f "$PROJ/main/etc/root/ksu/$ROOT/$ROOT.sh" ]] || die "unknown root '$ROOT'"
 [[ -n "$ROOT" ]] && TAG="$TAG-$ROOT"
 
@@ -171,6 +174,10 @@ if [[ "$GATE_ONLY" == 0 ]]; then
     "$PROJ/main/etc/root/load.sh" required "$ROOT" > "$KOUT/root-$ROOT.required"
     FRAGS+=("$KOUT/root-$ROOT.required")
   fi
+  if [[ "$LTO" != none ]]; then
+    "$PROJ/main/etc/lto/load.sh" required "$LTO" > "$KOUT/lto-$LTO.required"
+    FRAGS+=("$KOUT/lto-$LTO.required")
+  fi
   for a in "${ADDONS[@]}"; do
     "$PROJ/main/addons/load.sh" required "$a" > "$KOUT/addon-$a.required"
     "$PROJ/main/addons/load.sh" optional "$a" > "$KOUT/addon-$a.optional"
@@ -203,7 +210,9 @@ if [[ "$GATE_ONLY" == 0 ]]; then
     tail -30 "$KOUT/olddefconfig.log" >&2
     die "olddefconfig failed"
   }
-  for inv in CONFIG_LOCALVERSION_AUTO=y CONFIG_MODULE_SCMVERSION=y CONFIG_PAHOLE_HAS_BTF_TAG=y CONFIG_LTO_NONE=y CONFIG_CFI_CLANG=y; do
+  LTO_INVARIANTS="CONFIG_LTO_NONE=y"
+  [[ "$LTO" == none ]] || LTO_INVARIANTS="$("$PROJ/main/etc/lto/load.sh" invariant "$LTO")"
+  for inv in CONFIG_LOCALVERSION_AUTO=y CONFIG_MODULE_SCMVERSION=y CONFIG_PAHOLE_HAS_BTF_TAG=y CONFIG_CFI_CLANG=y $LTO_INVARIANTS; do
     grep -qx "$inv" "$KOUT/.config" || die "KMI config invariant missing after olddefconfig: $inv"
   done
 

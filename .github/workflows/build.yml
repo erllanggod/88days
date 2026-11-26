@@ -7,6 +7,14 @@ on:
         description: Droidspaces support
         type: boolean
         default: false
+      nolto:
+        description: LTO - None
+        type: boolean
+        default: true
+      thin:
+        description: LTO - Thin
+        type: boolean
+        default: false
       vanilla:
         description: Build Vanilla
         type: boolean
@@ -37,11 +45,17 @@ jobs:
           v=()
           [ "${{ inputs.vanilla }}" = "true" ] && v+=(none)
           [ "${{ inputs.finasu }}" = "true" ] && v+=(finasu)
+          l=()
+          [ "${{ inputs.nolto }}" = "true" ] && l+=(none)
+          [ "${{ inputs.thin }}" = "true" ] && l+=(thin)
           [ ${#v[@]} -gt 0 ] || { echo "no variant selected" >&2; exit 1; }
-          echo "matrix=$(printf '%s\n' "${v[@]}" | jq -R . | jq -sc '{root: .}')" >> "$GITHUB_OUTPUT"
+          [ ${#l[@]} -gt 0 ] || { echo "no LTO mode selected" >&2; exit 1; }
+          r="$(printf '%s\n' "${v[@]}" | jq -R . | jq -sc .)"
+          t="$(printf '%s\n' "${l[@]}" | jq -R . | jq -sc .)"
+          echo "matrix=$(jq -nc --argjson r "$r" --argjson l "$t" '{root: $r, lto: $l}')" >> "$GITHUB_OUTPUT"
 
   build:
-    name: ${{ matrix.root == 'none' && 'vanilla' || matrix.root }}
+    name: ${{ matrix.root == 'none' && 'vanilla' || matrix.root }} (${{ matrix.lto == 'none' && 'no LTO' || matrix.lto }})
     needs: plan
     strategy:
       fail-fast: false
@@ -109,6 +123,9 @@ jobs:
           flags=""; tag="vanilla"
           if [ "${{ inputs.droidspaces }}" = "true" ]; then
             flags="$flags --droidspaces"; tag="$tag-droidspaces"
+          fi
+          if [ "${{ matrix.lto }}" != "none" ]; then
+            flags="$flags --lto ${{ matrix.lto }}"; tag="$tag-${{ matrix.lto }}"
           fi
           if [ "${{ matrix.root }}" != "none" ]; then
             flags="$flags --root ${{ matrix.root }}"; tag="$tag-${{ matrix.root }}"
