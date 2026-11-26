@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CMD="${1:?usage: main/etc/root/load.sh apply|required|makevars|probes|label <root> [kernel_dir]}"
+CMD="${1:?usage: main/etc/root/load.sh apply|required|makevars|probes|label|nomount-version <root> [kernel_dir]}"
 ROOT="${2:?root name}"
 PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 HERE="$PROJ/main/etc/root"
@@ -11,6 +11,9 @@ WORK="${ROOT_WORK:-$PROJ/.build/root}"
 REQUIRED=(); PROBES=(); ROOT_MAKEVARS=()
 source "$HERE/susfs/susfs.sh"
 source "$HERE/ksu/$ROOT/$ROOT.sh"
+ROOT_REQUIRED=("${REQUIRED[@]}"); ROOT_PROBES=("${PROBES[@]}")
+source "$HERE/nomount/nomount.sh"
+REQUIRED=("${ROOT_REQUIRED[@]}" "${REQUIRED[@]}"); PROBES=("${ROOT_PROBES[@]}" "${PROBES[@]}")
 
 fetch_pin() {
   local url="$1" ref="$2" dir="$3" depth="$4"
@@ -46,7 +49,23 @@ case "$CMD" in
     grep -q kernelsu "$KSRC/drivers/Makefile" || printf '\nobj-$(CONFIG_KSU) += kernelsu/\n' >> "$KSRC/drivers/Makefile"
     grep -q 'drivers/kernelsu/Kconfig' "$KSRC/drivers/Kconfig" || sed -i '/endmenu/i source "drivers/kernelsu/Kconfig"' "$KSRC/drivers/Kconfig"
     grep -q 'drivers/kernelsu/Kconfig' "$KSRC/drivers/Kconfig" || { echo "failed to hook drivers/Kconfig" >&2; exit 1; }
-    echo "   integrated $ROOT_LABEL @ ${ROOT_REF:0:8}" ;;
+    echo "   integrated $ROOT_LABEL @ ${ROOT_REF:0:8}"
+
+    rm -rf "$WORK/nomount"
+    git clone -q --depth 1 -b "$NOMOUNT_REF" "$NOMOUNT_REPO" "$WORK/nomount"
+    [[ -f "$WORK/nomount/kernel/src/Kconfig" && -f "$WORK/nomount/kernel/src/Makefile" ]] || { echo "nomount: upstream layout changed (kernel/src missing)" >&2; exit 1; }
+    rm -rf "$KSRC/fs/nomount"; mkdir -p "$KSRC/fs/nomount"
+    cp -a "$WORK/nomount/kernel/src/." "$KSRC/fs/nomount/"
+    grep -q nomount "$KSRC/fs/Makefile" || printf '\nobj-$(CONFIG_NOMOUNT) += nomount/\n' >> "$KSRC/fs/Makefile"
+    if ! grep -q 'source "fs/nomount/Kconfig"' "$KSRC/fs/Kconfig"; then
+      awk '/^endmenu/ { last = NR } { l[NR] = $0 }
+           END { for (i = 1; i <= NR; i++) { if (i == last) print "source \"fs/nomount/Kconfig\""; print l[i] } }' \
+        "$KSRC/fs/Kconfig" > "$KSRC/fs/Kconfig.tmp" && mv "$KSRC/fs/Kconfig.tmp" "$KSRC/fs/Kconfig"
+    fi
+    grep -q 'source "fs/nomount/Kconfig"' "$KSRC/fs/Kconfig" || { echo "failed to hook fs/Kconfig" >&2; exit 1; }
+    jq -r '"\(.version) (\(.versionCode))"' "$WORK/nomount/update.json" > "$WORK/nomount.version"
+    echo "   integrated NoMount $(cat "$WORK/nomount.version") @ $(git -C "$WORK/nomount" rev-parse --short HEAD)" ;;
+  nomount-version) cat "$WORK/nomount.version" ;;
   required) for c in ${REQUIRED[@]+"${REQUIRED[@]}"}; do echo "CONFIG_$c=y"; done ;;
   makevars) printf '%s\n' ${ROOT_MAKEVARS[@]+"${ROOT_MAKEVARS[@]}"} ;;
   probes)   for p in ${PROBES[@]+"${PROBES[@]}"}; do set -- $p; echo "- CONFIG_$1 $2"; done ;;

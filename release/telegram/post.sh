@@ -24,6 +24,8 @@ SHA256="$(sha256sum "$ZIP" | cut -d' ' -f1)"
 DURATION="$((DUR / 60))m $((DUR % 60))s"
 BUILD_DATE="$(TZ=Asia/Jakarta date '+%Y-%m-%d %H:%M WIB')"
 
+if [[ "${CLANG_FAMILY:-aosp}" == neutron ]]; then CLANG_NAME="Neutron Clang"; else CLANG_NAME="AOSP Clang"; fi
+
 ROOT_NAME=""
 for _r in "$PROJ"/main/etc/root/ksu/*/; do
   _n="$(basename "$_r")"
@@ -52,7 +54,9 @@ fi
 
 BULLETS=("ADIOS I/O Scheduler" "BORE Scheduler")
 [[ "$TAG" == *droidspaces* ]] && BULLETS+=("Droidspaces")
-BULLETS+=("kcompressd + le9uo" "NTSync" "Reflex CPU Governor")
+BULLETS+=("kcompressd + le9uo")
+[[ -n "$ROOT_NAME" ]] && BULLETS+=("NoMount $("$PROJ/main/etc/root/load.sh" nomount-version "$ROOT_NAME" 2>/dev/null || true)")
+BULLETS+=("NTSync" "Reflex CPU Governor")
 [[ -n "$ROOT_NAME" ]] && BULLETS+=("SuSFS $SUSFS_VERSION")
 LTO_LABEL="No LTO"
 for _l in "$PROJ"/main/etc/lto/*/; do
@@ -67,7 +71,7 @@ CAPTION+=$'\n'
 for b in "${BULLETS[@]}"; do CAPTION+=$'\n'"• $b"; done
 
 DETAIL="<b>Build Info:</b>
-⚙️ Clang: AOSP Clang ${CLANG_V}
+⚙️ Clang: ${CLANG_NAME} ${CLANG_V}
 🔐 SHA256: <code>${SHA256}</code>
 ⏱️ Duration: ${DURATION}
 📅 Date: ${BUILD_DATE}
