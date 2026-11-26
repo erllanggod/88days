@@ -7,14 +7,13 @@ on:
         description: Droidspaces support
         type: boolean
         default: false
-      nolto:
-        description: LTO - None
-        type: boolean
-        default: true
-      thin:
-        description: LTO - Thin
-        type: boolean
-        default: false
+      lto:
+        description: LTO mode (applies to every variant checked below)
+        type: choice
+        options:
+          - none
+          - thin
+        default: none
       vanilla:
         description: Build Vanilla
         type: boolean
@@ -45,14 +44,9 @@ jobs:
           v=()
           [ "${{ inputs.vanilla }}" = "true" ] && v+=(none)
           [ "${{ inputs.finasu }}" = "true" ] && v+=(finasu)
-          l=()
-          [ "${{ inputs.nolto }}" = "true" ] && l+=(none)
-          [ "${{ inputs.thin }}" = "true" ] && l+=(thin)
           [ ${#v[@]} -gt 0 ] || { echo "no variant selected" >&2; exit 1; }
-          [ ${#l[@]} -gt 0 ] || { echo "no LTO mode selected" >&2; exit 1; }
           r="$(printf '%s\n' "${v[@]}" | jq -R . | jq -sc .)"
-          t="$(printf '%s\n' "${l[@]}" | jq -R . | jq -sc .)"
-          echo "matrix=$(jq -nc --argjson r "$r" --argjson l "$t" '{root: $r, lto: $l}')" >> "$GITHUB_OUTPUT"
+          echo "matrix=$(jq -nc --argjson r "$r" --arg l "${{ inputs.lto }}" '{root: $r, lto: [$l]}')" >> "$GITHUB_OUTPUT"
 
   build:
     name: ${{ matrix.root == 'none' && 'vanilla' || matrix.root }} (${{ matrix.lto == 'none' && 'no LTO' || matrix.lto }})
