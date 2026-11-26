@@ -20,10 +20,9 @@ KERNEL_REL="$(cat "$OUT/kernel.release")"
 KERNEL_VER="${KERNEL_REL%%-*}"
 CLANG_L="$("${CLANG_DIR:-$PROJ/.build/clang}/bin/clang" --version | head -1)"
 CLANG_V="$(sed -nE 's/.*clang version ([0-9.]+).*/\1/p' <<<"$CLANG_L")"
-SIZE="$(du -h "$ZIP" | cut -f1)"
 SHA256="$(sha256sum "$ZIP" | cut -d' ' -f1)"
 DURATION="$((DUR / 60))m $((DUR % 60))s"
-BUILD_DATE="$(date -u '+%Y-%m-%d %H:%M UTC')"
+BUILD_DATE="$(TZ=Asia/Jakarta date '+%Y-%m-%d %H:%M WIB')"
 
 ROOT_NAME=""
 for _r in "$PROJ"/main/etc/root/ksu/*/; do
@@ -64,7 +63,6 @@ for b in "${BULLETS[@]}"; do CAPTION+=$'\n'"• $b"; done
 
 DETAIL="<b>Build Info:</b>
 ⚙️ Clang: AOSP Clang ${CLANG_V}
-💾 Size: ${SIZE}
 🔐 SHA256: <code>${SHA256}</code>
 ⏱️ Duration: ${DURATION}
 📅 Date: ${BUILD_DATE}
