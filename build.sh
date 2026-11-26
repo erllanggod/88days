@@ -11,12 +11,13 @@ ok()   { echo "$(c '1;32')✓$(c 0) $*"; }
 warn() { echo "$(c '1;33')⚠$(c 0) $*" >&2; }
 die()  { echo "$(c '1;31')✗ ERROR: $*$(c 0)" >&2; exit 1; }
 
-VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; JOBS="${JOBS:-$(nproc)}"
+VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; NOMOUNT="${NOMOUNT:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; JOBS="${JOBS:-$(nproc)}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     vanilla)     VARIANT="$1" ;;
     --gate-only) GATE_ONLY=1 ;;
     --droidspaces) DROIDSPACES=1 ;;
+    --nomount)   NOMOUNT=1 ;;
     --root)      shift; ROOT="${1:-}" ;;
     --lto)       shift; LTO="${1:-}" ;;
     --jobs)      shift; JOBS="${1:-}" ;;
@@ -24,7 +25,7 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--root finasu] [--lto none|thin|full] [--gate-only] [--jobs N]"
+[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--nomount] [--root finasu] [--lto none|thin|full] [--gate-only] [--jobs N]"
 
 [[ -f "$PROJ/main/branding/device.conf" ]] || die "missing $PROJ/main/branding/device.conf"
 source "$PROJ/main/branding/device.conf"
@@ -42,6 +43,7 @@ done
 TAG="$VARIANT"
 ADDONS=()
 [[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
+[[ "$NOMOUNT" == 1 ]] && TAG="$TAG-nomount"
 [[ "$LTO" == none || -f "$PROJ/main/etc/lto/$LTO/$LTO.sh" ]] || die "unknown lto '$LTO'"
 [[ "$LTO" == none ]] || TAG="$TAG-$LTO"
 [[ -z "$ROOT" || -f "$PROJ/main/etc/root/ksu/$ROOT/$ROOT.sh" ]] || die "unknown root '$ROOT'"
@@ -168,11 +170,20 @@ if [[ "$GATE_ONLY" == 0 ]]; then
     "$PROJ/main/etc/root/load.sh" apply "$ROOT" "$KERNEL_SRC" || die "root $ROOT failed to integrate"
   fi
 
+  if [[ "$NOMOUNT" == 1 ]]; then
+    step "Integrating NoMount (latest upstream)"
+    "$PROJ/main/etc/nomount/load.sh" apply "$KERNEL_SRC" || die "NoMount failed to integrate"
+  fi
+
   FRAGS=("$PROJ/main/config/vanilla_defconfig")
   SOFT_FRAGS=()
   if [[ -n "$ROOT" ]]; then
     "$PROJ/main/etc/root/load.sh" required "$ROOT" > "$KOUT/root-$ROOT.required"
     FRAGS+=("$KOUT/root-$ROOT.required")
+  fi
+  if [[ "$NOMOUNT" == 1 ]]; then
+    "$PROJ/main/etc/nomount/load.sh" required > "$KOUT/nomount.required"
+    FRAGS+=("$KOUT/nomount.required")
   fi
   if [[ "$LTO" != none ]]; then
     "$PROJ/main/etc/lto/load.sh" required "$LTO" > "$KOUT/lto-$LTO.required"
@@ -277,7 +288,8 @@ while read -r p cfg sym; do
     || MISS+="  $p: probe symbol '$sym' missing from System.map"$'\n'
 done < <({ awk '!/^[[:space:]]*(#|$)/' "$PROJ/main/etc/cpatch/series"
            for a in ${ADDONS[@]+"${ADDONS[@]}"}; do "$PROJ/main/addons/load.sh" probes "$a"; done
-           [[ -z "$ROOT" ]] || "$PROJ/main/etc/root/load.sh" probes "$ROOT"; })
+           [[ -z "$ROOT" ]] || "$PROJ/main/etc/root/load.sh" probes "$ROOT"
+           [[ "$NOMOUNT" != 1 ]] || "$PROJ/main/etc/nomount/load.sh" probes; })
 
 [[ -z "$MISS" ]] || die "built kernel is missing configured features or patch symbols:
 $MISS"

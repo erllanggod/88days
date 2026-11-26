@@ -3,8 +3,19 @@ name: maketr0uble
 on:
   workflow_dispatch:
     inputs:
+      clang:
+        description: Clang toolchain
+        type: choice
+        options:
+          - aosp
+          - neutron
+        default: aosp
       droidspaces:
         description: Droidspaces
+        type: boolean
+        default: false
+      finasu:
+        description: FinaSU + SUSFS
         type: boolean
         default: false
       lto:
@@ -15,21 +26,14 @@ on:
           - thin
           - full
         default: none
-      clang:
-        description: Clang toolchain
-        type: choice
-        options:
-          - aosp
-          - neutron
-        default: aosp
+      nomount:
+        description: NoMount
+        type: boolean
+        default: false
       vanilla:
         description: Vanilla
         type: boolean
         default: true
-      finasu:
-        description: FinaSU + SUSFS
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -134,6 +138,9 @@ jobs:
           flags=""; tag="vanilla"
           if [ "${{ inputs.droidspaces }}" = "true" ]; then
             flags="$flags --droidspaces"; tag="$tag-droidspaces"
+          fi
+          if [ "${{ inputs.nomount }}" = "true" ]; then
+            flags="$flags --nomount"; tag="$tag-nomount"
           fi
           if [ "${{ matrix.lto }}" != "none" ]; then
             flags="$flags --lto ${{ matrix.lto }}"; tag="$tag-${{ matrix.lto }}"

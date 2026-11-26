@@ -55,7 +55,7 @@ fi
 BULLETS=("ADIOS I/O Scheduler" "BORE Scheduler")
 [[ "$TAG" == *droidspaces* ]] && BULLETS+=("Droidspaces")
 BULLETS+=("kcompressd + le9uo")
-[[ -n "$ROOT_NAME" ]] && BULLETS+=("NoMount $("$PROJ/main/etc/root/load.sh" nomount-version "$ROOT_NAME" 2>/dev/null || true)")
+[[ "$TAG" == *-nomount* ]] && BULLETS+=("NoMount $("$PROJ/main/etc/nomount/load.sh" version 2>/dev/null || true)")
 BULLETS+=("NTSync" "Reflex CPU Governor")
 [[ -n "$ROOT_NAME" ]] && BULLETS+=("SuSFS $SUSFS_VERSION")
 LTO_LABEL="No LTO"
@@ -64,6 +64,7 @@ for _l in "$PROJ"/main/etc/lto/*/; do
   [[ "$TAG" == *-"$_n" || "$TAG" == *-"$_n"-* ]] && LTO_LABEL="$("$PROJ/main/etc/lto/load.sh" label "$_n")"
 done
 BULLETS+=("TCP: BBRv3" "$LTO_LABEL")
+mapfile -t BULLETS < <(printf '%s\n' "${BULLETS[@]}" | LC_ALL=C sort -f)
 
 CAPTION="${BRAND} ${KERNEL_VER}"
 [[ -n "$ROOT_LINE" ]] && CAPTION+=$'\n'"$ROOT_LINE"
