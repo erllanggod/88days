@@ -11,18 +11,19 @@ ok()   { echo "$(c '1;32')✓$(c 0) $*"; }
 warn() { echo "$(c '1;33')⚠$(c 0) $*" >&2; }
 die()  { echo "$(c '1;31')✗ ERROR: $*$(c 0)" >&2; exit 1; }
 
-VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; JOBS="${JOBS:-$(nproc)}"
+VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; ROOT="${ROOT:-}"; JOBS="${JOBS:-$(nproc)}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     vanilla)     VARIANT="$1" ;;
     --gate-only) GATE_ONLY=1 ;;
     --droidspaces) DROIDSPACES=1 ;;
+    --root)      shift; ROOT="${1:-}" ;;
     --jobs)      shift; JOBS="${1:-}" ;;
     *)           die "unknown argument: $1" ;;
   esac
   shift
 done
-[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--gate-only] [--jobs N]"
+[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--root finasu] [--gate-only] [--jobs N]"
 
 [[ -f "$PROJ/main/branding/device.conf" ]] || die "missing $PROJ/main/branding/device.conf"
 source "$PROJ/main/branding/device.conf"
@@ -39,7 +40,9 @@ done
 
 TAG="$VARIANT"
 ADDONS=()
-[[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$VARIANT-droidspaces"; }
+[[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
+[[ -z "$ROOT" || -f "$PROJ/main/etc/root/ksu/$ROOT/$ROOT.sh" ]] || die "unknown root '$ROOT'"
+[[ -n "$ROOT" ]] && TAG="$TAG-$ROOT"
 
 hdr "$DEVICE_FULL_LABEL — variant: $TAG"
 
@@ -104,6 +107,10 @@ MK=( make -C "$KERNEL_SRC" O="$KOUT" ARCH=arm64 LLVM=1 LLVM_IAS=1
      CROSS_COMPILE=aarch64-linux-gnu- CLANG_TRIPLE=aarch64-linux-gnu-
      KCFLAGS="$REPRO_FLAGS" )
 
+if [[ -n "$ROOT" ]]; then
+  while IFS= read -r _v; do [[ -n "$_v" ]] && MK+=("$_v"); done < <("$PROJ/main/etc/root/load.sh" makevars "$ROOT")
+fi
+
 SOURCE_DIRTY=0
 cleanup_source() {
   local rc=$?
@@ -153,8 +160,17 @@ if [[ "$GATE_ONLY" == 0 ]]; then
     "$PROJ/main/addons/load.sh" apply "$a" "$KERNEL_SRC" || die "addon $a failed to apply"
   done
 
+  if [[ -n "$ROOT" ]]; then
+    step "Integrating root: $ROOT + SUSFS"
+    "$PROJ/main/etc/root/load.sh" apply "$ROOT" "$KERNEL_SRC" || die "root $ROOT failed to integrate"
+  fi
+
   FRAGS=("$PROJ/main/config/vanilla_defconfig")
   SOFT_FRAGS=()
+  if [[ -n "$ROOT" ]]; then
+    "$PROJ/main/etc/root/load.sh" required "$ROOT" > "$KOUT/root-$ROOT.required"
+    FRAGS+=("$KOUT/root-$ROOT.required")
+  fi
   for a in "${ADDONS[@]}"; do
     "$PROJ/main/addons/load.sh" required "$a" > "$KOUT/addon-$a.required"
     "$PROJ/main/addons/load.sh" optional "$a" > "$KOUT/addon-$a.optional"
@@ -190,6 +206,14 @@ if [[ "$GATE_ONLY" == 0 ]]; then
   for inv in CONFIG_LOCALVERSION_AUTO=y CONFIG_MODULE_SCMVERSION=y CONFIG_PAHOLE_HAS_BTF_TAG=y CONFIG_LTO_NONE=y CONFIG_CFI_CLANG=y; do
     grep -qx "$inv" "$KOUT/.config" || die "KMI config invariant missing after olddefconfig: $inv"
   done
+
+  if [[ -n "$ROOT" ]]; then
+    step "Pre-generating SELinux headers for the root driver"
+    "${MK[@]}" -j"$JOBS" security/selinux/ > "$KOUT/selinux-pre.log" 2>&1 || {
+      tail -30 "$KOUT/selinux-pre.log" >&2
+      die "security/selinux/ pre-build failed"
+    }
+  fi
 
   step "Building vmlinux, Image, Image.gz, Image.lz4, modules (-j$JOBS)"
   "${MK[@]}" KERNELRELEASE="$EXPECT_REL" -j"$JOBS" vmlinux Image Image.gz Image.lz4 modules 2>&1 | tee "$OUT/build.log"
@@ -243,7 +267,8 @@ while read -r p cfg sym; do
   [[ "$sym" == "-" ]] || awk -v s="$sym" '$3==s{f=1} END{exit !f}' "$SMAP" \
     || MISS+="  $p: probe symbol '$sym' missing from System.map"$'\n'
 done < <({ awk '!/^[[:space:]]*(#|$)/' "$PROJ/main/etc/cpatch/series"
-           for a in ${ADDONS[@]+"${ADDONS[@]}"}; do "$PROJ/main/addons/load.sh" probes "$a"; done; })
+           for a in ${ADDONS[@]+"${ADDONS[@]}"}; do "$PROJ/main/addons/load.sh" probes "$a"; done
+           [[ -z "$ROOT" ]] || "$PROJ/main/etc/root/load.sh" probes "$ROOT"; })
 
 [[ -z "$MISS" ]] || die "built kernel is missing configured features or patch symbols:
 $MISS"

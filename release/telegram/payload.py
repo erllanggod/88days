@@ -21,16 +21,21 @@ rows = [
     ("Kernel", esc(e["KERNEL_VER"])),
     ("Toolchain", esc(e["CLANG_STR"])),
     ("LTO", chip("No LTO")),
-    ("Scheduler", esc("BORE")),
-    ("CPU Governor", esc("Reflex")),
-    ("I/O Scheduler", esc("ADIOS")),
     ("Droidspaces", chip("Enable", "success") if ds else chip("Disable", "danger")),
 ]
+if e.get("ROOT_LABEL"):
+    rows.append(("Root", chip(e["ROOT_LABEL"], "success")))
+    rows.append(("SUSFS", chip(e["SUSFS_VERSION"], "success")))
+else:
+    rows.append(("Root", chip("Disable", "danger")))
 table = "<table bordered>" + "".join(
     f"<tr><td>{k}</td><td>{v}</td></tr>" for k, v in rows
 ) + "</table>"
 
 more = [
+    ("BORE", "burst-oriented CPU scheduler"),
+    ("Reflex", "responsive CPU governor"),
+    ("ADIOS", "adaptive I/O scheduler"),
     ("kcompressd + le9uo", "better memory handling"),
     ("NTSync", "faster Wine/Proton sync"),
     ("BBRv3", "TCP congestion control"),

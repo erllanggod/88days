@@ -7,6 +7,13 @@ on:
         description: Droidspaces support
         type: boolean
         default: false
+      root:
+        description: Root solution (includes SUSFS)
+        type: choice
+        options:
+          - none
+          - finasu
+        default: none
 
 permissions:
   contents: read
@@ -80,13 +87,15 @@ jobs:
 
       - name: Resolve build tag
         run: |
+          flags=""; tag="vanilla"
           if [ "${{ inputs.droidspaces }}" = "true" ]; then
-            echo "BUILD_FLAGS=--droidspaces" >> "$GITHUB_ENV"
-            echo "BUILD_TAG=vanilla-droidspaces" >> "$GITHUB_ENV"
-          else
-            echo "BUILD_FLAGS=" >> "$GITHUB_ENV"
-            echo "BUILD_TAG=vanilla" >> "$GITHUB_ENV"
+            flags="$flags --droidspaces"; tag="$tag-droidspaces"
           fi
+          if [ "${{ inputs.root }}" != "none" ]; then
+            flags="$flags --root ${{ inputs.root }}"; tag="$tag-${{ inputs.root }}"
+          fi
+          echo "BUILD_FLAGS=$flags" >> "$GITHUB_ENV"
+          echo "BUILD_TAG=$tag" >> "$GITHUB_ENV"
 
       - name: Build + KMI gates
         run: |

@@ -17,13 +17,22 @@ DUR=$(( $(date +%s) - ${BUILD_START:-$(date +%s)} ))
 export KERNEL_REL="$(cat "$OUT/kernel.release")"
 CLANG_L="$("${CLANG_DIR:-$PROJ/.build/clang}/bin/clang" --version | head -1)"
 CLANG_V="$(sed -nE 's/.*clang version ([0-9.]+).*/\1/p' <<<"$CLANG_L")"
-CLANG_R="$(sed -nE 's/.*based on (r[0-9a-z]+).*/\1/p' <<<"$CLANG_L")"
-export CLANG_STR="AOSP Clang ${CLANG_V}${CLANG_R:+ ($CLANG_R)}"
+export CLANG_STR="AOSP Clang ${CLANG_V}"
 export KERNEL_VER="${KERNEL_REL%%-*}"
 export SIZE="$(du -h "$ZIP" | cut -f1)"
 export SHA256="$(sha256sum "$ZIP" | cut -d' ' -f1)"
 export DURATION="$((DUR / 60))m $((DUR % 60))s"
 export BUILD_DATE="$(date -u '+%Y-%m-%d %H:%M UTC')"
+ROOT_NAME=""
+for _r in "$PROJ"/main/etc/root/ksu/*/; do
+  _n="$(basename "$_r")"
+  [[ "$TAG" == *-"$_n" ]] && ROOT_NAME="$_n"
+done
+export ROOT_LABEL="" SUSFS_VERSION=""
+if [[ -n "$ROOT_NAME" ]]; then
+  ROOT_LABEL="$("$PROJ/main/etc/root/load.sh" label "$ROOT_NAME")"
+  SUSFS_VERSION="$(source "$PROJ/main/etc/root/susfs/susfs.sh"; echo "$SUSFS_VERSION")"
+fi
 export TG_TITLE="${BRAND} ${KERNEL_VER}"
 export DROIDSPACES=$([[ "$TAG" == *droidspaces* ]] && echo 1 || echo 0)
 export CHANGELOG="$("$PROJ/release/telegram/changelog.sh" || true)"
