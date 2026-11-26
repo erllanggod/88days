@@ -152,7 +152,17 @@ jobs:
           echo "BUILD_FLAGS=$flags" >> "$GITHUB_ENV"
           echo "BUILD_TAG=$tag" >> "$GITHUB_ENV"
 
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: .build/ccache
+          key: ccache-${{ inputs.clang }}-${{ matrix.lto }}-${{ github.run_id }}-${{ matrix.root }}
+          restore-keys: |
+            ccache-${{ inputs.clang }}-${{ matrix.lto }}-
+
       - name: Build + KMI gates
+        env:
+          KOUT: ${{ github.workspace }}/.build/out
         run: |
           if [ "${{ inputs.lto }}" = "full" ]; then
             .github/runner/memwatch.sh &
@@ -160,6 +170,19 @@ jobs:
           else
             ./build.sh vanilla $BUILD_FLAGS
           fi
+
+      - name: Trim and save ccache
+        if: always()
+        run: ccache --cleanup 2>/dev/null || true
+        env:
+          CCACHE_DIR: ${{ github.workspace }}/.build/ccache
+
+      - name: Save ccache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: .build/ccache
+          key: ccache-${{ inputs.clang }}-${{ matrix.lto }}-${{ github.run_id }}-${{ matrix.root }}
 
       - name: Package AnyKernel3 zip
         run: release/package.sh "$BUILD_TAG"

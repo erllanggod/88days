@@ -107,10 +107,22 @@ SRC_EPOCH="${SOURCE_DATE_EPOCH:-$(git -C "$KERNEL_SRC" log -1 --format=%ct 2>/de
 export SOURCE_DATE_EPOCH="$SRC_EPOCH"
 export KBUILD_BUILD_TIMESTAMP="${KBUILD_BUILD_TIMESTAMP:-$(date -u -d "@$SRC_EPOCH" 2>/dev/null || date -u)}"
 
+CCACHE_ON=0
+if [[ "${CCACHE:-1}" != 0 ]] && command -v ccache >/dev/null 2>&1; then
+  CCACHE_ON=1
+  export CCACHE_DIR="${CCACHE_DIR:-$PROJ/.build/ccache}" CCACHE_BASEDIR="$PROJ"
+  export CCACHE_COMPRESS=1 CCACHE_MAXSIZE="${CCACHE_MAXSIZE:-1500M}" CCACHE_COMPILERCHECK=content
+  export CCACHE_SLOPPINESS=include_file_mtime,include_file_ctime
+  mkdir -p "$CCACHE_DIR"
+  ccache -z >/dev/null
+  echo "   ccache        : $(ccache --version | head -1) ($CCACHE_DIR, max $CCACHE_MAXSIZE)"
+fi
+
 REPRO_FLAGS="-ffile-prefix-map=$KOUT=/build/obj -ffile-prefix-map=$KERNEL_SRC=/build/src"
 MK=( make -C "$KERNEL_SRC" O="$KOUT" ARCH=arm64 LLVM=1 LLVM_IAS=1
      CROSS_COMPILE=aarch64-linux-gnu- CLANG_TRIPLE=aarch64-linux-gnu-
      KCFLAGS="$REPRO_FLAGS" )
+if [[ "$CCACHE_ON" == 1 ]]; then MK+=(CC="ccache clang"); fi
 
 if [[ -n "$ROOT" ]]; then
   while IFS= read -r _v; do [[ -n "$_v" ]] && MK+=("$_v"); done < <("$PROJ/main/etc/root/load.sh" makevars "$ROOT")
@@ -228,6 +240,7 @@ if [[ "$GATE_ONLY" == 0 ]]; then
 
   step "Building vmlinux, Image, Image.gz, Image.lz4, modules (-j$JOBS)"
   "${MK[@]}" KERNELRELEASE="$EXPECT_REL" -j"$JOBS" vmlinux Image Image.gz Image.lz4 modules 2>&1 | tee "$OUT/build.log"
+  if [[ "$CCACHE_ON" == 1 ]]; then ccache -s 2>&1 | sed -n '1,12p'; fi
   ok "Kernel compilation complete"
 
 fi
