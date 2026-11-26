@@ -10,4 +10,6 @@ sudo fallocate -l "${SIZE_GB}G" /mnt/swapfile
 sudo chmod 600 /mnt/swapfile
 sudo mkswap /mnt/swapfile >/dev/null
 sudo swapon /mnt/swapfile
+# keep the runner agent responsive: swap only when RAM is really short
+sudo sysctl -q vm.swappiness=10
 free -h

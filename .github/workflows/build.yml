@@ -11,6 +11,14 @@ on:
         description: Vanilla
         type: boolean
         default: true
+      droidspaces:
+        description: Droidspaces
+        type: boolean
+        default: false
+      nomount:
+        description: NoMount
+        type: boolean
+        default: false
       clang:
         description: Clang toolchain
         type: choice
@@ -18,10 +26,6 @@ on:
           - aosp
           - neutron
         default: aosp
-      droidspaces:
-        description: Droidspaces
-        type: boolean
-        default: false
       lto:
         description: LTO mode
         type: choice
@@ -30,10 +34,6 @@ on:
           - thin
           - full
         default: none
-      nomount:
-        description: NoMount
-        type: boolean
-        default: false
 
 permissions:
   contents: read
@@ -154,7 +154,12 @@ jobs:
 
       - name: Build + KMI gates
         run: |
-          ./build.sh vanilla $BUILD_FLAGS
+          if [ "${{ inputs.lto }}" = "full" ]; then
+            .github/runner/memwatch.sh &
+            nice -n 10 ./build.sh vanilla $BUILD_FLAGS
+          else
+            ./build.sh vanilla $BUILD_FLAGS
+          fi
 
       - name: Package AnyKernel3 zip
         run: release/package.sh "$BUILD_TAG"
