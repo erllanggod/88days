@@ -32,7 +32,6 @@ on:
         options:
           - none
           - thin
-          - full
         default: none
 
 permissions:
@@ -118,10 +117,6 @@ jobs:
       - name: Install dependencies
         run: .github/runner/deps.sh
 
-      - name: Add swap (Full LTO)
-        if: inputs.lto == 'full'
-        run: .github/runner/swap.sh 28
-
       - name: Fetch Android clang r510928
         if: inputs.clang == 'aosp'
         run: prep/aosp.sh .build/clang
@@ -163,13 +158,7 @@ jobs:
       - name: Build + KMI gates
         env:
           KOUT: ${{ github.workspace }}/.build/out
-        run: |
-          if [ "${{ inputs.lto }}" = "full" ]; then
-            .github/runner/memwatch.sh &
-            nice -n 10 ./build.sh vanilla $BUILD_FLAGS
-          else
-            ./build.sh vanilla $BUILD_FLAGS
-          fi
+        run: ./build.sh vanilla $BUILD_FLAGS
 
       - name: Trim and save ccache
         if: always()
