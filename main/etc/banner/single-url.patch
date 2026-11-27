@@ -1,0 +1,13 @@
+diff --git a/scripts/mkcompile_h b/scripts/mkcompile_h
+index 2596f78e5..ee30e297b 100755
+--- a/scripts/mkcompile_h
++++ b/scripts/mkcompile_h
+@@ -17,7 +17,7 @@ else
+ fi
+ 
+ LD_VERSION=$(LC_ALL=C $LD -v | head -n1 |
+-		sed -e 's/(compatible with [^)]*)//' -e 's/[[:space:]]*$//')
++		sed -e 's/(compatible with [^)]*)//' -e 's/ ([^()]*:\/\/[^()]*)//' -e 's/[[:space:]]*$//')
+ 
+ cat <<EOF
+ #define UTS_MACHINE		"${UTS_MACHINE}"

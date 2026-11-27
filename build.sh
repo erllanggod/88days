@@ -155,6 +155,8 @@ if [[ "$GATE_ONLY" == 0 ]]; then
   prepare_source
   trap cleanup_source EXIT
 
+  git -C "$KERNEL_SRC" apply "$PROJ/main/etc/banner/single-url.patch" || die "banner patch failed to apply"
+
   step "Generating GKI ABI symbol whitelist ($KOUT/abi_symbollist.raw)"
   {
     awk '
