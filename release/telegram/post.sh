@@ -63,6 +63,12 @@ for _l in "$PROJ"/main/etc/lto/*/; do
   _n="$(basename "$_l")"
   [[ "$TAG" == *-"$_n" || "$TAG" == *-"$_n"-* ]] && LTO_LABEL="$("$PROJ/main/etc/lto/load.sh" label "$_n")"
 done
+HZ_LABEL="$("$PROJ/main/etc/hz/load.sh" label 250)"
+for _h in "$PROJ"/main/etc/hz/*/; do
+  _n="$(basename "$_h")"
+  [[ "$TAG" == *-"${_n}hz" || "$TAG" == *-"${_n}hz"-* ]] && HZ_LABEL="$("$PROJ/main/etc/hz/load.sh" label "$_n")"
+done
+BULLETS+=("$HZ_LABEL")
 TCP_LABEL="TCP: BBRv3"
 [[ "$TAG" == *-tcpbrutal* ]] && TCP_LABEL="TCP: BBRv3, Brutal"
 BULLETS+=("$TCP_LABEL" "$LTO_LABEL")

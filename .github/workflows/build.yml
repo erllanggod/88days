@@ -30,6 +30,14 @@ on:
           - aosp
           - neutron
         default: aosp
+      hz:
+        description: Timer frequency
+        type: choice
+        options:
+          - "250"
+          - "500"
+          - "1000"
+        default: "250"
       lto:
         description: LTO mode
         type: choice
@@ -143,6 +151,9 @@ jobs:
           fi
           if [ "${{ inputs.tcpbrutal }}" = "true" ]; then
             flags="$flags --tcpbrutal"; tag="$tag-tcpbrutal"
+          fi
+          if [ "${{ inputs.hz }}" != "250" ]; then
+            flags="$flags --hz ${{ inputs.hz }}"; tag="$tag-${{ inputs.hz }}hz"
           fi
           if [ "${{ matrix.lto }}" != "none" ]; then
             flags="$flags --lto ${{ matrix.lto }}"; tag="$tag-${{ matrix.lto }}"

@@ -1,0 +1,4 @@
+HZ_LABEL="500Hz"
+REQUIRED=(HZ_500)
+UNSET=(HZ_250)
+PATCH="kconfig-500.patch"

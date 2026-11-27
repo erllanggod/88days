@@ -11,7 +11,7 @@ ok()   { echo "$(c '1;32')✓$(c 0) $*"; }
 warn() { echo "$(c '1;33')⚠$(c 0) $*" >&2; }
 die()  { echo "$(c '1;31')✗ ERROR: $*$(c 0)" >&2; exit 1; }
 
-VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; NOMOUNT="${NOMOUNT:-0}"; TCPBRUTAL="${TCPBRUTAL:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; JOBS="${JOBS:-$(nproc)}"
+VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; NOMOUNT="${NOMOUNT:-0}"; TCPBRUTAL="${TCPBRUTAL:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; HZ_MODE="${HZ_MODE:-250}"; JOBS="${JOBS:-$(nproc)}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     vanilla)     VARIANT="$1" ;;
@@ -20,13 +20,14 @@ while [[ $# -gt 0 ]]; do
     --nomount)   NOMOUNT=1 ;;
     --tcpbrutal) TCPBRUTAL=1 ;;
     --root)      shift; ROOT="${1:-}" ;;
+    --hz)        shift; HZ_MODE="${1:-}" ;;
     --lto)       shift; LTO="${1:-}" ;;
     --jobs)      shift; JOBS="${1:-}" ;;
     *)           die "unknown argument: $1" ;;
   esac
   shift
 done
-[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--nomount] [--tcpbrutal] [--root finasu] [--lto none|thin] [--gate-only] [--jobs N]"
+[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--nomount] [--tcpbrutal] [--root finasu] [--hz 250|500|1000] [--lto none|thin] [--gate-only] [--jobs N]"
 
 [[ -f "$PROJ/main/branding/device.conf" ]] || die "missing $PROJ/main/branding/device.conf"
 source "$PROJ/main/branding/device.conf"
@@ -46,6 +47,8 @@ ADDONS=()
 [[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
 [[ "$NOMOUNT" == 1 ]] && { ADDONS+=(nomount); TAG="$TAG-nomount"; }
 [[ "$TCPBRUTAL" == 1 ]] && { ADDONS+=(tcpbrutal); TAG="$TAG-tcpbrutal"; }
+[[ -f "$PROJ/main/etc/hz/$HZ_MODE/$HZ_MODE.sh" ]] || die "unknown hz '$HZ_MODE'"
+[[ "$HZ_MODE" == 250 ]] || TAG="$TAG-${HZ_MODE}hz"
 [[ "$LTO" == none || -f "$PROJ/main/etc/lto/$LTO/$LTO.sh" ]] || die "unknown lto '$LTO'"
 [[ "$LTO" == none ]] || TAG="$TAG-$LTO"
 [[ -z "$ROOT" || -f "$PROJ/main/etc/root/ksu/$ROOT/$ROOT.sh" ]] || die "unknown root '$ROOT'"
@@ -158,6 +161,10 @@ if [[ "$GATE_ONLY" == 0 ]]; then
   trap cleanup_source EXIT
 
   git -C "$KERNEL_SRC" apply "$PROJ/main/etc/banner/single-url.patch" || die "banner patch failed to apply"
+  HZ_PATCH="$("$PROJ/main/etc/hz/load.sh" patch "$HZ_MODE")"
+  if [[ -n "$HZ_PATCH" ]]; then
+    git -C "$KERNEL_SRC" apply "$HZ_PATCH" || die "hz patch $(basename "$HZ_PATCH") failed to apply"
+  fi
 
   step "Generating GKI ABI symbol whitelist ($KOUT/abi_symbollist.raw)"
   {
@@ -192,6 +199,8 @@ if [[ "$GATE_ONLY" == 0 ]]; then
     "$PROJ/main/etc/root/load.sh" required "$ROOT" > "$KOUT/root-$ROOT.required"
     FRAGS+=("$KOUT/root-$ROOT.required")
   fi
+  "$PROJ/main/etc/hz/load.sh" required "$HZ_MODE" > "$KOUT/hz-$HZ_MODE.required"
+  FRAGS+=("$KOUT/hz-$HZ_MODE.required")
   if [[ "$LTO" != none ]]; then
     "$PROJ/main/etc/lto/load.sh" required "$LTO" > "$KOUT/lto-$LTO.required"
     FRAGS+=("$KOUT/lto-$LTO.required")
@@ -230,7 +239,8 @@ if [[ "$GATE_ONLY" == 0 ]]; then
   }
   LTO_INVARIANTS="CONFIG_LTO_NONE=y"
   [[ "$LTO" == none ]] || LTO_INVARIANTS="$("$PROJ/main/etc/lto/load.sh" invariant "$LTO")"
-  for inv in CONFIG_LOCALVERSION_AUTO=y CONFIG_MODULE_SCMVERSION=y CONFIG_PAHOLE_HAS_BTF_TAG=y CONFIG_CFI_CLANG=y $LTO_INVARIANTS; do
+  HZ_INVARIANTS="$("$PROJ/main/etc/hz/load.sh" invariant "$HZ_MODE")"
+  for inv in CONFIG_LOCALVERSION_AUTO=y CONFIG_MODULE_SCMVERSION=y CONFIG_PAHOLE_HAS_BTF_TAG=y CONFIG_CFI_CLANG=y $LTO_INVARIANTS $HZ_INVARIANTS; do
     grep -qx "$inv" "$KOUT/.config" || die "KMI config invariant missing after olddefconfig: $inv"
   done
 
