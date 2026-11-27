@@ -19,14 +19,6 @@ on:
         description: NoMount
         type: boolean
         default: false
-      rekernel:
-        description: Re:Kernel
-        type: boolean
-        default: false
-      tcpbrutal:
-        description: TCP Brutal
-        type: boolean
-        default: false
       clang:
         description: Clang toolchain
         type: choice
@@ -38,10 +30,10 @@ on:
         description: Timer frequency
         type: choice
         options:
-          - "250"
-          - "500"
-          - "1000"
-        default: "250"
+          - balance
+          - performance
+          - ultra
+        default: balance
       lto:
         description: LTO mode
         type: choice
@@ -153,14 +145,8 @@ jobs:
           if [ "${{ inputs.nomount }}" = "true" ]; then
             flags="$flags --nomount"; tag="$tag-nomount"
           fi
-          if [ "${{ inputs.rekernel }}" = "true" ]; then
-            flags="$flags --rekernel"; tag="$tag-rekernel"
-          fi
-          if [ "${{ inputs.tcpbrutal }}" = "true" ]; then
-            flags="$flags --tcpbrutal"; tag="$tag-tcpbrutal"
-          fi
-          if [ "${{ inputs.hz }}" != "250" ]; then
-            flags="$flags --hz ${{ inputs.hz }}"; tag="$tag-${{ inputs.hz }}hz"
+          if [ "${{ inputs.hz }}" != "balance" ]; then
+            flags="$flags --hz ${{ inputs.hz }}"; tag="$tag-${{ inputs.hz }}"
           fi
           if [ "${{ matrix.lto }}" != "none" ]; then
             flags="$flags --lto ${{ matrix.lto }}"; tag="$tag-${{ matrix.lto }}"

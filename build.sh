@@ -11,15 +11,13 @@ ok()   { echo "$(c '1;32')✓$(c 0) $*"; }
 warn() { echo "$(c '1;33')⚠$(c 0) $*" >&2; }
 die()  { echo "$(c '1;31')✗ ERROR: $*$(c 0)" >&2; exit 1; }
 
-VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; NOMOUNT="${NOMOUNT:-0}"; REKERNEL="${REKERNEL:-0}"; TCPBRUTAL="${TCPBRUTAL:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; HZ_MODE="${HZ_MODE:-250}"; JOBS="${JOBS:-$(nproc)}"
+VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; NOMOUNT="${NOMOUNT:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; HZ_MODE="${HZ_MODE:-balance}"; JOBS="${JOBS:-$(nproc)}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     vanilla)     VARIANT="$1" ;;
     --gate-only) GATE_ONLY=1 ;;
     --droidspaces) DROIDSPACES=1 ;;
     --nomount)   NOMOUNT=1 ;;
-    --rekernel)  REKERNEL=1 ;;
-    --tcpbrutal) TCPBRUTAL=1 ;;
     --root)      shift; ROOT="${1:-}" ;;
     --hz)        shift; HZ_MODE="${1:-}" ;;
     --lto)       shift; LTO="${1:-}" ;;
@@ -28,7 +26,7 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--nomount] [--rekernel] [--tcpbrutal] [--root finasu] [--hz 250|500|1000] [--lto none|thin] [--gate-only] [--jobs N]"
+[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--nomount] [--root finasu] [--hz balance|performance|ultra] [--lto none|thin] [--gate-only] [--jobs N]"
 
 [[ -f "$PROJ/main/branding/device.conf" ]] || die "missing $PROJ/main/branding/device.conf"
 source "$PROJ/main/branding/device.conf"
@@ -44,13 +42,11 @@ for v in PROJ KERNEL_SRC KMI_REF_TREE KMI_REF_SYSTEM_TREE CLANG_DIR; do
 done
 
 TAG="$VARIANT"
-ADDONS=()
+ADDONS=(rekernel tcpbrutal)
 [[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
 [[ "$NOMOUNT" == 1 ]] && { ADDONS+=(nomount); TAG="$TAG-nomount"; }
-[[ "$REKERNEL" == 1 ]] && { ADDONS+=(rekernel); TAG="$TAG-rekernel"; }
-[[ "$TCPBRUTAL" == 1 ]] && { ADDONS+=(tcpbrutal); TAG="$TAG-tcpbrutal"; }
 [[ -f "$PROJ/main/etc/hz/$HZ_MODE/$HZ_MODE.sh" ]] || die "unknown hz '$HZ_MODE'"
-[[ "$HZ_MODE" == 250 ]] || TAG="$TAG-${HZ_MODE}hz"
+[[ "$HZ_MODE" == balance ]] || TAG="$TAG-$HZ_MODE"
 [[ "$LTO" == none || -f "$PROJ/main/etc/lto/$LTO/$LTO.sh" ]] || die "unknown lto '$LTO'"
 [[ "$LTO" == none ]] || TAG="$TAG-$LTO"
 [[ -z "$ROOT" || -f "$PROJ/main/etc/root/ksu/$ROOT/$ROOT.sh" ]] || die "unknown root '$ROOT'"

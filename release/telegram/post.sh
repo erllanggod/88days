@@ -56,7 +56,7 @@ BULLETS=("ADIOS I/O Scheduler" "BORE Scheduler")
 [[ "$TAG" == *droidspaces* ]] && BULLETS+=("Droidspaces")
 BULLETS+=("kcompressd + le9uo")
 [[ "$TAG" == *-nomount* ]] && BULLETS+=("NoMount $("$PROJ/main/addons/load.sh" version nomount 2>/dev/null || true)")
-[[ "$TAG" == *-rekernel* ]] && BULLETS+=("Re:Kernel")
+BULLETS+=("Re:Kernel")
 BULLETS+=("NTSync" "Reflex CPU Governor")
 [[ -n "$ROOT_NAME" ]] && BULLETS+=("SuSFS $SUSFS_VERSION")
 LTO_LABEL="No LTO"
@@ -64,15 +64,12 @@ for _l in "$PROJ"/main/etc/lto/*/; do
   _n="$(basename "$_l")"
   [[ "$TAG" == *-"$_n" || "$TAG" == *-"$_n"-* ]] && LTO_LABEL="$("$PROJ/main/etc/lto/load.sh" label "$_n")"
 done
-HZ_LABEL="$("$PROJ/main/etc/hz/load.sh" label 250)"
+HZ_LABEL="$("$PROJ/main/etc/hz/load.sh" label balance)"
 for _h in "$PROJ"/main/etc/hz/*/; do
   _n="$(basename "$_h")"
-  [[ "$TAG" == *-"${_n}hz" || "$TAG" == *-"${_n}hz"-* ]] && HZ_LABEL="$("$PROJ/main/etc/hz/load.sh" label "$_n")"
+  [[ "$TAG" == *-"$_n" || "$TAG" == *-"$_n"-* ]] && HZ_LABEL="$("$PROJ/main/etc/hz/load.sh" label "$_n")"
 done
-BULLETS+=("$HZ_LABEL")
-TCP_LABEL="TCP: BBRv3"
-[[ "$TAG" == *-tcpbrutal* ]] && TCP_LABEL="TCP: BBRv3, Brutal"
-BULLETS+=("$TCP_LABEL" "$LTO_LABEL")
+BULLETS+=("$HZ_LABEL" "TCP: BBRv3, Brutal" "$LTO_LABEL")
 mapfile -t BULLETS < <(printf '%s\n' "${BULLETS[@]}" | LC_ALL=C sort -f)
 
 CAPTION="${BRAND} ${KERNEL_VER}"
