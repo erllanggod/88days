@@ -20,14 +20,14 @@ on:
         type: boolean
         default: false
       clang:
-        description: Clang toolchain
+        description: CFrontend
         type: choice
         options:
           - aosp
           - neutron
         default: aosp
       hz:
-        description: Timer frequency
+        description: TFreq
         type: choice
         options:
           - balance
@@ -35,7 +35,7 @@ on:
           - ultra
         default: balance
       lto:
-        description: LTO mode
+        description: CBackend
         type: choice
         options:
           - none
