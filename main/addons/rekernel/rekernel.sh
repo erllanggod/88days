@@ -1,0 +1,5 @@
+PATCHES=(rekernel)
+
+REQUIRED=(REKERNEL)
+
+PROBES=("REKERNEL -")

@@ -1,0 +1,263 @@
+diff --git a/drivers/android/Kconfig b/drivers/android/Kconfig
+index 3f1126e60..daf93576e 100644
+--- a/drivers/android/Kconfig
++++ b/drivers/android/Kconfig
+@@ -37,6 +37,15 @@ config ANDROID_BINDER_DEVICES
+ 	  created. Each binder device has its own context manager, and is
+ 	  therefore logically separated from the other devices.
+ 
++config REKERNEL
++	bool "Re:Kernel binder and signal notifier"
++	depends on ANDROID_BINDER_IPC && FREEZER && NET
++	default n
++	help
++	  Sends binder transactions and fatal signals aimed at frozen
++	  processes to userspace over a netlink socket so a freezer
++	  manager can thaw them in time.
++
+ config ANDROID_BINDER_IPC_SELFTEST
+ 	bool "Android Binder IPC Driver Selftest"
+ 	depends on ANDROID_BINDER_IPC
+diff --git a/drivers/android/Makefile b/drivers/android/Makefile
+index 4a54d290e..5f6229e0e 100644
+--- a/drivers/android/Makefile
++++ b/drivers/android/Makefile
+@@ -4,6 +4,7 @@ ccflags-y += -I$(src)			# needed for trace events
+ obj-$(CONFIG_ANDROID_BINDERFS)		+= binderfs.o
+ obj-$(CONFIG_ANDROID_BINDER_IPC)	+= binder.o binder_alloc.o
+ obj-$(CONFIG_ANDROID_BINDER_IPC_SELFTEST) += binder_alloc_selftest.o
++obj-$(CONFIG_REKERNEL)		+= rekernel.o
+ obj-$(CONFIG_ANDROID_DEBUG_SYMBOLS)	+= android_debug_symbols.o
+ obj-$(CONFIG_ANDROID_VENDOR_HOOKS) += vendor_hooks.o
+ obj-$(CONFIG_ANDROID_DEBUG_KINFO)	+= debug_kinfo.o
+diff --git a/drivers/android/binder.c b/drivers/android/binder.c
+index d3095ca85..5dc975d31 100644
+--- a/drivers/android/binder.c
++++ b/drivers/android/binder.c
+@@ -74,6 +74,7 @@
+ #include <linux/cacheflush.h>
+ 
+ #include "binder_internal.h"
++#include <linux/rekernel.h>
+ #include "binder_trace.h"
+ #include <trace/hooks/binder.h>
+ 
+@@ -3305,6 +3306,7 @@ static void binder_transaction(struct binder_proc *proc,
+ 		target_proc = target_thread->proc;
+ 		target_proc->tmp_ref++;
+ 		binder_inner_proc_unlock(target_thread->proc);
++		rekernel_binder(proc->tsk, proc->pid, target_proc->tsk, target_proc->pid, true, false);
+ 		trace_android_vh_binder_reply(target_proc, proc, thread, tr);
+ 	} else {
+ 		if (tr->target.handle) {
+@@ -3369,6 +3371,7 @@ static void binder_transaction(struct binder_proc *proc,
+ 			goto err_invalid_target_handle;
+ 		}
+ 		trace_android_vh_binder_trans(target_proc, proc, thread, tr);
++		rekernel_binder(proc->tsk, proc->pid, target_proc->tsk, target_proc->pid, false, !!(tr->flags & TF_ONE_WAY));
+ 		if (security_binder_transaction(proc->cred,
+ 						target_proc->cred) < 0) {
+ 			binder_txn_error("%d:%d transaction credentials failed\n",
+diff --git a/drivers/android/rekernel.c b/drivers/android/rekernel.c
+new file mode 100644
+index 000000000..22485a8f9
+--- /dev/null
++++ b/drivers/android/rekernel.c
+@@ -0,0 +1,150 @@
++// SPDX-License-Identifier: GPL-2.0
++#include <linux/init.h>
++#include <linux/kernel.h>
++#include <linux/sched.h>
++#include <linux/sched/signal.h>
++#include <linux/cred.h>
++#include <linux/freezer.h>
++#include <linux/netlink.h>
++#include <linux/proc_fs.h>
++#include <linux/seq_file.h>
++#include <linux/rekernel.h>
++#include <net/net_namespace.h>
++#include <net/sock.h>
++
++#define REKERNEL_UNIT_MIN	22
++#define REKERNEL_UNIT_MAX	26
++#define REKERNEL_USER_PORT	100
++#define REKERNEL_PACKET_SIZE	128
++#define REKERNEL_MIN_APP_UID	10000
++#define REKERNEL_MAX_SYS_UID	2000
++
++static struct sock *rekernel_sk;
++static int rekernel_unit;
++
++static inline bool rekernel_frozen(struct task_struct *task)
++{
++	return frozen(task->group_leader) || freezing(task->group_leader);
++}
++
++static void rekernel_send(const char *msg, size_t len)
++{
++	struct sk_buff *skb;
++	struct nlmsghdr *nlh;
++
++	skb = nlmsg_new(len, GFP_ATOMIC);
++	if (!skb)
++		return;
++	nlh = nlmsg_put(skb, 0, 0, rekernel_unit, len, 0);
++	if (!nlh) {
++		nlmsg_free(skb);
++		return;
++	}
++	memcpy(nlmsg_data(nlh), msg, len);
++	netlink_unicast(rekernel_sk, skb, REKERNEL_USER_PORT, MSG_DONTWAIT);
++}
++
++void rekernel_binder(struct task_struct *from, pid_t from_pid,
++		     struct task_struct *to, pid_t to_pid,
++		     bool reply, bool oneway)
++{
++	char msg[REKERNEL_PACKET_SIZE];
++	int len;
++
++	if (!READ_ONCE(rekernel_sk) || !from || !to || from_pid == to_pid)
++		return;
++	if (!rekernel_frozen(to))
++		return;
++
++	if (reply) {
++		if (task_uid(to).val > REKERNEL_MAX_SYS_UID)
++			return;
++		len = snprintf(msg, sizeof(msg),
++			       "type=Binder,bindertype=reply,oneway=0,from_pid=%d,from=%d,target_pid=%d,target=%d;",
++			       from_pid, task_uid(from).val,
++			       to_pid, task_uid(to).val);
++	} else {
++		if (task_uid(to).val <= REKERNEL_MIN_APP_UID)
++			return;
++		len = snprintf(msg, sizeof(msg),
++			       "type=Binder,bindertype=transaction,oneway=%d,from_pid=%d,from=%d,target_pid=%d,target=%d;",
++			       oneway, from_pid, task_uid(from).val,
++			       to_pid, task_uid(to).val);
++	}
++	rekernel_send(msg, min_t(int, len, sizeof(msg) - 1));
++}
++
++void rekernel_signal(int sig, struct task_struct *p)
++{
++	char msg[REKERNEL_PACKET_SIZE];
++	int len;
++
++	if (!READ_ONCE(rekernel_sk))
++		return;
++	if (sig != SIGKILL && sig != SIGTERM && sig != SIGABRT && sig != SIGQUIT)
++		return;
++	if (!rekernel_frozen(current))
++		return;
++
++	len = snprintf(msg, sizeof(msg),
++		       "type=Signal,signal=%d,killer_pid=%d,killer=%d,dst_pid=%d,dst=%d;",
++		       sig, task_tgid_nr(p), task_uid(p).val,
++		       task_tgid_nr(current), task_uid(current).val);
++	rekernel_send(msg, min_t(int, len, sizeof(msg) - 1));
++}
++
++static void rekernel_rcv(struct sk_buff *skb)
++{
++}
++
++static int rekernel_unit_show(struct seq_file *m, void *v)
++{
++	seq_printf(m, "%d\n", rekernel_unit);
++	return 0;
++}
++
++static int rekernel_unit_open(struct inode *inode, struct file *file)
++{
++	return single_open(file, rekernel_unit_show, NULL);
++}
++
++static const struct proc_ops rekernel_unit_fops = {
++	.proc_open	= rekernel_unit_open,
++	.proc_read	= seq_read,
++	.proc_lseek	= seq_lseek,
++	.proc_release	= single_release,
++};
++
++static int __init rekernel_init(void)
++{
++	struct netlink_kernel_cfg cfg = { .input = rekernel_rcv };
++	struct proc_dir_entry *dir;
++	struct sock *sk = NULL;
++	char name[16];
++	int unit;
++
++	for (unit = REKERNEL_UNIT_MIN; unit < REKERNEL_UNIT_MAX; unit++) {
++		sk = netlink_kernel_create(&init_net, unit, &cfg);
++		if (sk)
++			break;
++	}
++	if (!sk) {
++		pr_err("rekernel: no free netlink unit\n");
++		return -ENODEV;
++	}
++
++	dir = proc_mkdir("rekernel", NULL);
++	if (dir) {
++		snprintf(name, sizeof(name), "%d", unit);
++		if (!proc_create(name, 0644, dir, &rekernel_unit_fops))
++			pr_err("rekernel: cannot create /proc/rekernel/%d\n", unit);
++	} else {
++		pr_err("rekernel: cannot create /proc/rekernel\n");
++	}
++
++	rekernel_unit = unit;
++	WRITE_ONCE(rekernel_sk, sk);
++	pr_info("rekernel: netlink unit %d\n", unit);
++	return 0;
++}
++late_initcall(rekernel_init);
+diff --git a/include/linux/rekernel.h b/include/linux/rekernel.h
+new file mode 100644
+index 000000000..7d4d933e8
+--- /dev/null
++++ b/include/linux/rekernel.h
+@@ -0,0 +1,21 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _LINUX_REKERNEL_H
++#define _LINUX_REKERNEL_H
++
++#include <linux/types.h>
++
++struct task_struct;
++
++#ifdef CONFIG_REKERNEL
++void rekernel_binder(struct task_struct *from, pid_t from_pid,
++		     struct task_struct *to, pid_t to_pid,
++		     bool reply, bool oneway);
++void rekernel_signal(int sig, struct task_struct *p);
++#else
++static inline void rekernel_binder(struct task_struct *from, pid_t from_pid,
++				   struct task_struct *to, pid_t to_pid,
++				   bool reply, bool oneway) {}
++static inline void rekernel_signal(int sig, struct task_struct *p) {}
++#endif
++
++#endif
+diff --git a/kernel/signal.c b/kernel/signal.c
+index 83c7aed2c..62fcb9657 100644
+--- a/kernel/signal.c
++++ b/kernel/signal.c
+@@ -36,6 +36,7 @@
+ #include <linux/task_work.h>
+ #include <linux/capability.h>
+ #include <linux/freezer.h>
++#include <linux/rekernel.h>
+ #include <linux/pid_namespace.h>
+ #include <linux/nsproxy.h>
+ #include <linux/user_namespace.h>
+@@ -1323,6 +1324,7 @@ int do_send_sig_info(int sig, struct kernel_siginfo *info, struct task_struct *p
+ {
+ 	unsigned long flags;
+ 	int ret = -ESRCH;
++	rekernel_signal(sig, p);
+ 	trace_android_vh_do_send_sig_info(sig, current, p);
+ 	if (lock_task_sighand(p, &flags)) {
+ 		ret = send_signal_locked(sig, info, p, type);
