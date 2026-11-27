@@ -58,12 +58,35 @@ index d3095ca85..5dc975d31 100644
  		if (security_binder_transaction(proc->cred,
  						target_proc->cred) < 0) {
  			binder_txn_error("%d:%d transaction credentials failed\n",
+diff --git a/drivers/android/binder_alloc.c b/drivers/android/binder_alloc.c
+index fa0e0b756..01baf612f 100644
+--- a/drivers/android/binder_alloc.c
++++ b/drivers/android/binder_alloc.c
+@@ -25,6 +25,7 @@
+ #include <linux/sizes.h>
+ #include "binder_alloc.h"
+ #include "binder_trace.h"
++#include <linux/rekernel.h>
+ #include <trace/hooks/binder.h>
+ 
+ struct list_lru binder_freelist;
+@@ -458,6 +459,10 @@ static struct binder_buffer *binder_alloc_new_buf_locked(
+ 		goto out;
+ 	}
+ 
++	if (is_async && (alloc->free_async_space < 3 * (size + sizeof(struct binder_buffer)) ||
++			 alloc->free_async_space < (1 << 17)))
++		rekernel_binder_full(alloc->pid);
++
+ 	if (is_async && alloc->free_async_space < size) {
+ 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC,
+ 			     "%d: binder_alloc_buf size %zd failed, no async space left\n",
 diff --git a/drivers/android/rekernel.c b/drivers/android/rekernel.c
 new file mode 100644
-index 000000000..22485a8f9
+index 000000000..f4d703a94
 --- /dev/null
 +++ b/drivers/android/rekernel.c
-@@ -0,0 +1,150 @@
+@@ -0,0 +1,173 @@
 +// SPDX-License-Identifier: GPL-2.0
 +#include <linux/init.h>
 +#include <linux/kernel.h>
@@ -137,6 +160,29 @@ index 000000000..22485a8f9
 +			       oneway, from_pid, task_uid(from).val,
 +			       to_pid, task_uid(to).val);
 +	}
++	rekernel_send(msg, min_t(int, len, sizeof(msg) - 1));
++}
++
++void rekernel_binder_full(pid_t to_pid)
++{
++	struct task_struct *to;
++	char msg[REKERNEL_PACKET_SIZE];
++	int len;
++
++	if (!READ_ONCE(rekernel_sk))
++		return;
++
++	rcu_read_lock();
++	to = pid_task(find_pid_ns(to_pid, &init_pid_ns), PIDTYPE_PID);
++	if (!to || to_pid == task_tgid_nr(current) || !rekernel_frozen(to)) {
++		rcu_read_unlock();
++		return;
++	}
++	len = snprintf(msg, sizeof(msg),
++		       "type=Binder,bindertype=free_buffer_full,oneway=1,from_pid=%d,from=%d,target_pid=%d,target=%d;",
++		       task_tgid_nr(current), task_uid(current).val,
++		       to_pid, task_uid(to).val);
++	rcu_read_unlock();
 +	rekernel_send(msg, min_t(int, len, sizeof(msg) - 1));
 +}
 +
@@ -216,10 +262,10 @@ index 000000000..22485a8f9
 +late_initcall(rekernel_init);
 diff --git a/include/linux/rekernel.h b/include/linux/rekernel.h
 new file mode 100644
-index 000000000..7d4d933e8
+index 000000000..caf17c6c5
 --- /dev/null
 +++ b/include/linux/rekernel.h
-@@ -0,0 +1,21 @@
+@@ -0,0 +1,23 @@
 +/* SPDX-License-Identifier: GPL-2.0 */
 +#ifndef _LINUX_REKERNEL_H
 +#define _LINUX_REKERNEL_H
@@ -232,11 +278,13 @@ index 000000000..7d4d933e8
 +void rekernel_binder(struct task_struct *from, pid_t from_pid,
 +		     struct task_struct *to, pid_t to_pid,
 +		     bool reply, bool oneway);
++void rekernel_binder_full(pid_t to_pid);
 +void rekernel_signal(int sig, struct task_struct *p);
 +#else
 +static inline void rekernel_binder(struct task_struct *from, pid_t from_pid,
 +				   struct task_struct *to, pid_t to_pid,
 +				   bool reply, bool oneway) {}
++static inline void rekernel_binder_full(pid_t to_pid) {}
 +static inline void rekernel_signal(int sig, struct task_struct *p) {}
 +#endif
 +
