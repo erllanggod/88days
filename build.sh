@@ -11,13 +11,14 @@ ok()   { echo "$(c '1;32')✓$(c 0) $*"; }
 warn() { echo "$(c '1;33')⚠$(c 0) $*" >&2; }
 die()  { echo "$(c '1;31')✗ ERROR: $*$(c 0)" >&2; exit 1; }
 
-VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; NOMOUNT="${NOMOUNT:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; JOBS="${JOBS:-$(nproc)}"
+VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; NOMOUNT="${NOMOUNT:-0}"; TCPBRUTAL="${TCPBRUTAL:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; JOBS="${JOBS:-$(nproc)}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     vanilla)     VARIANT="$1" ;;
     --gate-only) GATE_ONLY=1 ;;
     --droidspaces) DROIDSPACES=1 ;;
     --nomount)   NOMOUNT=1 ;;
+    --tcpbrutal) TCPBRUTAL=1 ;;
     --root)      shift; ROOT="${1:-}" ;;
     --lto)       shift; LTO="${1:-}" ;;
     --jobs)      shift; JOBS="${1:-}" ;;
@@ -25,7 +26,7 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--nomount] [--root finasu] [--lto none|thin] [--gate-only] [--jobs N]"
+[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--nomount] [--tcpbrutal] [--root finasu] [--lto none|thin] [--gate-only] [--jobs N]"
 
 [[ -f "$PROJ/main/branding/device.conf" ]] || die "missing $PROJ/main/branding/device.conf"
 source "$PROJ/main/branding/device.conf"
@@ -44,6 +45,7 @@ TAG="$VARIANT"
 ADDONS=()
 [[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
 [[ "$NOMOUNT" == 1 ]] && { ADDONS+=(nomount); TAG="$TAG-nomount"; }
+[[ "$TCPBRUTAL" == 1 ]] && { ADDONS+=(tcpbrutal); TAG="$TAG-tcpbrutal"; }
 [[ "$LTO" == none || -f "$PROJ/main/etc/lto/$LTO/$LTO.sh" ]] || die "unknown lto '$LTO'"
 [[ "$LTO" == none ]] || TAG="$TAG-$LTO"
 [[ -z "$ROOT" || -f "$PROJ/main/etc/root/ksu/$ROOT/$ROOT.sh" ]] || die "unknown root '$ROOT'"

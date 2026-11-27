@@ -63,7 +63,9 @@ for _l in "$PROJ"/main/etc/lto/*/; do
   _n="$(basename "$_l")"
   [[ "$TAG" == *-"$_n" || "$TAG" == *-"$_n"-* ]] && LTO_LABEL="$("$PROJ/main/etc/lto/load.sh" label "$_n")"
 done
-BULLETS+=("TCP: BBRv3" "$LTO_LABEL")
+TCP_LABEL="TCP: BBRv3"
+[[ "$TAG" == *-tcpbrutal* ]] && TCP_LABEL="TCP: BBRv3, Brutal"
+BULLETS+=("$TCP_LABEL" "$LTO_LABEL")
 mapfile -t BULLETS < <(printf '%s\n' "${BULLETS[@]}" | LC_ALL=C sort -f)
 
 CAPTION="${BRAND} ${KERNEL_VER}"

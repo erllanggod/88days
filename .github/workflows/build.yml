@@ -19,6 +19,10 @@ on:
         description: NoMount
         type: boolean
         default: false
+      tcpbrutal:
+        description: TCP Brutal
+        type: boolean
+        default: false
       clang:
         description: Clang toolchain
         type: choice
@@ -136,6 +140,9 @@ jobs:
           fi
           if [ "${{ inputs.nomount }}" = "true" ]; then
             flags="$flags --nomount"; tag="$tag-nomount"
+          fi
+          if [ "${{ inputs.tcpbrutal }}" = "true" ]; then
+            flags="$flags --tcpbrutal"; tag="$tag-tcpbrutal"
           fi
           if [ "${{ matrix.lto }}" != "none" ]; then
             flags="$flags --lto ${{ matrix.lto }}"; tag="$tag-${{ matrix.lto }}"
