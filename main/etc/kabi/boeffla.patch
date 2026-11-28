@@ -253,7 +253,7 @@ index 000000000..22858ddff
 +module_exit(boeffla_wl_blocker_exit);
 diff --git a/drivers/base/power/boeffla_wl_blocker.h b/drivers/base/power/boeffla_wl_blocker.h
 new file mode 100644
-index 000000000..79ed1d560
+index 000000000..3cfff35fe
 --- /dev/null
 +++ b/drivers/base/power/boeffla_wl_blocker.h
 @@ -0,0 +1,23 @@
@@ -275,7 +275,7 @@ index 000000000..79ed1d560
 +
 +#define BOEFFLA_WL_BLOCKER_VERSION	"1.1.0"
 +
-+#define LIST_WL_DEFAULT			""
++#define LIST_WL_DEFAULT			"IPA_WS;IPA_CLIENT_APPS_WAN_COAL_CONS;IPA_CLIENT_APPS_WAN_LOW_LAT_CONS;IPA_CLIENT_APPS_LAN_CONS;rmnet_ipa%d;rmnet_ctl;RMNET_SHS"
 +
 +#define LENGTH_LIST_WL			1024
 +#define LENGTH_LIST_WL_DEFAULT		1024
