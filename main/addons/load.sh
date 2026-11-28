@@ -26,7 +26,7 @@ case "$CMD" in
       rm -rf "$WORK"; mkdir -p "$WORK"
       addon_apply "$KSRC" "$WORK"
     fi ;;
-  required) for c in ${REQUIRED[@]+"${REQUIRED[@]}"}; do echo "CONFIG_$c=y"; done ;;
+  required) for c in ${REQUIRED[@]+"${REQUIRED[@]}"}; do [[ "$c" == *=* ]] && echo "CONFIG_$c" || echo "CONFIG_$c=y"; done ;;
   optional) for c in ${OPTIONAL[@]+"${OPTIONAL[@]}"}; do echo "CONFIG_$c=y"; done ;;
   probes)   for p in ${PROBES[@]+"${PROBES[@]}"}; do set -- $p; echo "- CONFIG_$1 $2"; done ;;
   version)  cat "$WORK/version" ;;

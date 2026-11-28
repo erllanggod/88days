@@ -24,7 +24,11 @@ SHA256="$(sha256sum "$ZIP" | cut -d' ' -f1)"
 DURATION="$((DUR / 60))m $((DUR % 60))s"
 BUILD_DATE="$(TZ=Asia/Jakarta date '+%Y-%m-%d %H:%M WIB')"
 
-if [[ "${CLANG_FAMILY:-aosp}" == neutron ]]; then CLANG_NAME="Neutron Clang"; else CLANG_NAME="AOSP Clang"; fi
+case "${CLANG_FAMILY:-aosp}" in
+  neutron) CLANG_NAME="Neutron Clang" ;;
+  cbl)     CLANG_NAME="ClangBuiltLinux Clang" ;;
+  *)       CLANG_NAME="AOSP Clang" ;;
+esac
 
 ROOT_NAME=""
 for _r in "$PROJ"/main/etc/root/ksu/*/; do
@@ -52,7 +56,7 @@ if [[ -n "$ROOT_NAME" ]]; then
   ROOT_LINE="${ROOT_LABEL} ${_kn}${_kv:+ ($_kv${_ku:+/$_ku})}"
 fi
 
-BULLETS=("ADIOS I/O Scheduler" "BORE Scheduler")
+BULLETS=("ADIOS I/O Scheduler" "Baseband Guard" "BORE Scheduler")
 [[ "$TAG" == *droidspaces* ]] && BULLETS+=("Droidspaces")
 BULLETS+=("kcompressd + le9uo")
 [[ "$TAG" == *bypasscharging* ]] && BULLETS+=("Bypass Charging")

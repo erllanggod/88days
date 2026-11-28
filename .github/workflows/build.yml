@@ -28,6 +28,7 @@ on:
         type: choice
         options:
           - aosp
+          - cbl
           - neutron
         default: aosp
       hz:
@@ -51,6 +52,7 @@ permissions:
   actions: read
 
 env:
+  CBL_VERSION: latest
   CLANG_URL: https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/android15-release/clang-r510928.tar.gz
   MAGISK_URL: https://github.com/topjohnwu/Magisk/releases/download/v27.0/Magisk-v27.0.apk
   KERNEL_REF: 13dbecdba4678e4264db264378a3e326e9da2e75
@@ -132,6 +134,10 @@ jobs:
       - name: Fetch Android clang r510928
         if: inputs.clang == 'aosp'
         run: prep/aosp.sh .build/clang
+
+      - name: Fetch ClangBuiltLinux clang
+        if: inputs.clang == 'cbl'
+        run: prep/cbl.sh .build/clang
 
       - name: Fetch Neutron clang (latest)
         if: inputs.clang == 'neutron'

@@ -43,7 +43,7 @@ for v in PROJ KERNEL_SRC KMI_REF_TREE KMI_REF_SYSTEM_TREE CLANG_DIR; do
 done
 
 TAG="$VARIANT"
-ADDONS=(boeffla rekernel sss tcpbrutal)
+ADDONS=(baseband-guard boeffla rekernel sss tcpbrutal)
 [[ "$BYPASS" == 1 ]] && { ADDONS+=(bypasscharging); TAG="$TAG-bypasscharging"; }
 [[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
 [[ "$NOMOUNT" == 1 ]] && { ADDONS+=(nomount); TAG="$TAG-nomount"; }
