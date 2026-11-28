@@ -7,6 +7,10 @@ on:
         description: FinaSU + SUSFS
         type: boolean
         default: false
+      ksunext:
+        description: KernelSU-Next + SUSFS
+        type: boolean
+        default: false
       vanilla:
         description: Vanilla
         type: boolean
@@ -48,7 +52,7 @@ on:
         default: none
 
 permissions:
-  contents: read
+  contents: write
   actions: read
 
 env:
@@ -69,6 +73,7 @@ jobs:
           v=()
           [ "${{ inputs.vanilla }}" = "true" ] && v+=(none)
           [ "${{ inputs.finasu }}" = "true" ] && v+=(finasu)
+          [ "${{ inputs.ksunext }}" = "true" ] && v+=(ksunext)
           [ ${#v[@]} -gt 0 ] || { echo "no variant selected" >&2; exit 1; }
           r="$(printf '%s\n' "${v[@]}" | jq -R . | jq -sc .)"
           echo "matrix=$(jq -nc --argjson r "$r" --arg l "${{ inputs.lto }}" '{root: $r, lto: [$l]}')" >> "$GITHUB_OUTPUT"
@@ -179,10 +184,21 @@ jobs:
           restore-keys: |
             ccache-${{ inputs.clang }}-${{ matrix.lto }}-
 
+      - name: Scout newest root and SUSFS commits
+        if: matrix.root != 'none'
+        run: .github/runner/scout.sh ${{ matrix.root }}
+
       - name: Build + KMI gates
+        id: build
         env:
           KOUT: ${{ github.workspace }}/.build/out
         run: ./build.sh vanilla $BUILD_FLAGS
+
+      - name: Record scout result
+        if: always() && matrix.root != 'none' && (steps.build.outcome == 'success' || steps.build.outcome == 'failure')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: .github/runner/checkpoint.sh ${{ steps.build.outcome }}
 
       - name: Trim and save ccache
         if: always()

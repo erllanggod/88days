@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-CMD="${1:?usage: main/etc/root/load.sh apply|required|makevars|probes|label <root> [kernel_dir]}"
+CMD="${1:?usage: main/etc/root/load.sh apply|required|makevars|probes|label|components|susfs-version <root> [kernel_dir]}"
 ROOT="${2:?root name}"
 PROJ="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
 HERE="$PROJ/main/etc/root"
@@ -11,6 +11,12 @@ WORK="${ROOT_WORK:-$PROJ/.build/root}"
 REQUIRED=(); PROBES=(); ROOT_MAKEVARS=()
 source "$HERE/susfs/susfs.sh"
 source "$HERE/ksu/$ROOT/$ROOT.sh"
+
+# Pins live in main/config/checkpoint.json; the scout step (.github/runner/scout.sh) may override them per run.
+CHECKPOINT="$PROJ/main/config/checkpoint.json"
+good_of() { jq -r --arg k "$1" '.[$k].good // empty' "$CHECKPOINT"; }
+ROOT_REF="${ROOT_REF_OVERRIDE:-$(good_of "$ROOT")}"
+SUSFS_REF="${SUSFS_REF_OVERRIDE:-$(good_of "$SUSFS_KEY")}"
 
 fetch_pin() {
   local url="$1" ref="$2" dir="$3" depth="$4"
@@ -30,11 +36,14 @@ fetch_pin() {
 case "$CMD" in
   apply)
     KSRC="${3:?kernel dir}"
+    [[ -n "$ROOT_REF" && -n "$SUSFS_REF" ]] || { echo "no pin for '$ROOT' / '$SUSFS_KEY' in $CHECKPOINT" >&2; exit 1; }
     fetch_pin "$SUSFS_REPO" "$SUSFS_REF" "$WORK/susfs" shallow
     patch="$HERE/susfs/$SUSFS_PATCH.patch"
     git -C "$KSRC" apply --check "$patch" 2>/dev/null || { echo "susfs: $SUSFS_PATCH.patch does not apply cleanly" >&2; exit 1; }
     git -C "$KSRC" apply --whitespace=nowarn "$patch"
-    echo "   applied $SUSFS_PATCH.patch (SUSFS $SUSFS_VERSION)"
+    SUSFS_VERSION="$(sed -nE 's/^#define SUSFS_VERSION +"([^"]+)".*/\1/p' "$WORK/susfs/kernel_patches/include/linux/susfs.h" | head -1)"
+    echo "${SUSFS_VERSION:-unknown}" > "$WORK/susfs-version"
+    echo "   applied $SUSFS_PATCH.patch (SUSFS ${SUSFS_VERSION:-unknown} @ ${SUSFS_REF:0:8})"
     for f in "${SUSFS_FILES[@]}"; do
       cp "$WORK/susfs/kernel_patches/$f" "$KSRC/$f"
     done
@@ -51,5 +60,9 @@ case "$CMD" in
   makevars) printf '%s\n' ${ROOT_MAKEVARS[@]+"${ROOT_MAKEVARS[@]}"} ;;
   probes)   for p in ${PROBES[@]+"${PROBES[@]}"}; do set -- $p; echo "- CONFIG_$1 $2"; done ;;
   label)    echo "$ROOT_LABEL" ;;
+  components)
+    echo "$ROOT $ROOT_REPO $ROOT_BRANCH"
+    echo "$SUSFS_KEY $SUSFS_REPO $SUSFS_BRANCH" ;;
+  susfs-version) cat "$WORK/susfs-version" 2>/dev/null || echo "-" ;;
   *) echo "unknown command '$CMD'" >&2; exit 2 ;;
 esac

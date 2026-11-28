@@ -39,7 +39,7 @@ done
 ROOT_LABEL=""; SUSFS_VERSION=""
 if [[ -n "$ROOT_NAME" ]]; then
   ROOT_LABEL="$("$PROJ/main/etc/root/load.sh" label "$ROOT_NAME")"
-  SUSFS_VERSION="$(source "$PROJ/main/etc/root/susfs/susfs.sh"; echo "$SUSFS_VERSION")"
+  SUSFS_VERSION="$("$PROJ/main/etc/root/load.sh" susfs-version "$ROOT_NAME")"
 fi
 
 KCOMMIT="$(git -C "$PROJ/.build/kernel-src" rev-parse --short=7 HEAD 2>/dev/null || echo "-")"

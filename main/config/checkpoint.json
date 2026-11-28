@@ -1,0 +1,18 @@
+{
+  "finasu": {
+    "good": "a85c03ab6be57fd1a81a6d345eb5aa8275652b42",
+    "bad": []
+  },
+  "ksunext": {
+    "good": "38b873ca8526328bc0221ac1e8340bb27768d998",
+    "bad": []
+  },
+  "susfs": {
+    "good": "ec03d0c73b821afa1d5037d6d493216f59744fcb",
+    "bad": []
+  },
+  "susfs_next": {
+    "good": "f98f08223bbf469cc0a1542166383d253557fc32",
+    "bad": []
+  }
+}

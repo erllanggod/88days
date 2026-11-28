@@ -1,6 +1,6 @@
 ROOT_LABEL="FinaSU"
 ROOT_REPO="https://github.com/erllanggod/FinaSU"
-ROOT_REF="a85c03ab6be57fd1a81a6d345eb5aa8275652b42"
+ROOT_BRANCH="master"
 
 ROOT_MAKEVARS=(
   KSU_EXPECTED_SIZE2=0x02cc
