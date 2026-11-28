@@ -56,7 +56,7 @@ BULLETS=("ADIOS I/O Scheduler" "BORE Scheduler")
 [[ "$TAG" == *droidspaces* ]] && BULLETS+=("Droidspaces")
 BULLETS+=("kcompressd + le9uo")
 [[ "$TAG" == *-nomount* ]] && BULLETS+=("NoMount $("$PROJ/main/addons/load.sh" version nomount 2>/dev/null || true)")
-BULLETS+=("Re:Kernel")
+BULLETS+=("Boeffla Wakelock Blocker" "Re:Kernel" "SSS CPU Governor")
 BULLETS+=("NTSync" "Reflex CPU Governor")
 [[ -n "$ROOT_NAME" ]] && BULLETS+=("SuSFS $SUSFS_VERSION")
 LTO_LABEL="No LTO"

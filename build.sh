@@ -42,7 +42,7 @@ for v in PROJ KERNEL_SRC KMI_REF_TREE KMI_REF_SYSTEM_TREE CLANG_DIR; do
 done
 
 TAG="$VARIANT"
-ADDONS=(rekernel tcpbrutal)
+ADDONS=(boeffla rekernel sss tcpbrutal)
 [[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
 [[ "$NOMOUNT" == 1 ]] && { ADDONS+=(nomount); TAG="$TAG-nomount"; }
 [[ -f "$PROJ/main/etc/hz/$HZ_MODE/$HZ_MODE.sh" ]] || die "unknown hz '$HZ_MODE'"
