@@ -55,6 +55,7 @@ fi
 BULLETS=("ADIOS I/O Scheduler" "BORE Scheduler")
 [[ "$TAG" == *droidspaces* ]] && BULLETS+=("Droidspaces")
 BULLETS+=("kcompressd + le9uo")
+[[ "$TAG" == *bypasscharging* ]] && BULLETS+=("Bypass Charging")
 [[ "$TAG" == *-nomount* ]] && BULLETS+=("NoMount $("$PROJ/main/addons/load.sh" version nomount 2>/dev/null || true)")
 BULLETS+=("Boeffla Wakelock Blocker" "Re:Kernel" "SSS CPU Governor")
 BULLETS+=("NTSync" "Reflex CPU Governor")

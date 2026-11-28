@@ -11,11 +11,12 @@ ok()   { echo "$(c '1;32')✓$(c 0) $*"; }
 warn() { echo "$(c '1;33')⚠$(c 0) $*" >&2; }
 die()  { echo "$(c '1;31')✗ ERROR: $*$(c 0)" >&2; exit 1; }
 
-VARIANT=""; GATE_ONLY=0; DROIDSPACES="${DROIDSPACES:-0}"; NOMOUNT="${NOMOUNT:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; HZ_MODE="${HZ_MODE:-balance}"; JOBS="${JOBS:-$(nproc)}"
+VARIANT=""; GATE_ONLY=0; BYPASS="${BYPASS:-0}"; DROIDSPACES="${DROIDSPACES:-0}"; NOMOUNT="${NOMOUNT:-0}"; ROOT="${ROOT:-}"; LTO="${LTO:-none}"; HZ_MODE="${HZ_MODE:-balance}"; JOBS="${JOBS:-$(nproc)}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     vanilla)     VARIANT="$1" ;;
     --gate-only) GATE_ONLY=1 ;;
+    --bypasscharging) BYPASS=1 ;;
     --droidspaces) DROIDSPACES=1 ;;
     --nomount)   NOMOUNT=1 ;;
     --root)      shift; ROOT="${1:-}" ;;
@@ -26,7 +27,7 @@ while [[ $# -gt 0 ]]; do
   esac
   shift
 done
-[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--droidspaces] [--nomount] [--root finasu] [--hz balance|performance|ultra] [--lto none|thin] [--gate-only] [--jobs N]"
+[[ -n "$VARIANT" ]] || die "usage: ./build.sh vanilla [--bypasscharging] [--droidspaces] [--nomount] [--root finasu] [--hz balance|performance|ultra] [--lto none|thin] [--gate-only] [--jobs N]"
 
 [[ -f "$PROJ/main/branding/device.conf" ]] || die "missing $PROJ/main/branding/device.conf"
 source "$PROJ/main/branding/device.conf"
@@ -43,6 +44,7 @@ done
 
 TAG="$VARIANT"
 ADDONS=(boeffla rekernel sss tcpbrutal)
+[[ "$BYPASS" == 1 ]] && { ADDONS+=(bypasscharging); TAG="$TAG-bypasscharging"; }
 [[ "$DROIDSPACES" == 1 ]] && { ADDONS+=(droidspace); TAG="$TAG-droidspaces"; }
 [[ "$NOMOUNT" == 1 ]] && { ADDONS+=(nomount); TAG="$TAG-nomount"; }
 [[ -f "$PROJ/main/etc/hz/$HZ_MODE/$HZ_MODE.sh" ]] || die "unknown hz '$HZ_MODE'"

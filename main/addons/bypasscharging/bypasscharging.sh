@@ -1,0 +1,5 @@
+PATCHES=(mca-bypass)
+
+REQUIRED=(MCA_BYPASS)
+
+PROBES=("MCA_BYPASS -")

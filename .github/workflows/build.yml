@@ -11,6 +11,10 @@ on:
         description: Vanilla
         type: boolean
         default: true
+      bypasscharging:
+        description: Bypass Charging
+        type: boolean
+        default: false
       droidspaces:
         description: Droidspaces
         type: boolean
@@ -139,6 +143,9 @@ jobs:
       - name: Resolve build tag
         run: |
           flags=""; tag="vanilla"
+          if [ "${{ inputs.bypasscharging }}" = "true" ]; then
+            flags="$flags --bypasscharging"; tag="$tag-bypasscharging"
+          fi
           if [ "${{ inputs.droidspaces }}" = "true" ]; then
             flags="$flags --droidspaces"; tag="$tag-droidspaces"
           fi
